@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>僵尸危机</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- 开始界面 -->
+<div id="start" class="overlay">
+  <button id="btnLang" class="lang-btn" type="button"></button>
+  <h1 data-i18n="title">僵尸危机</h1>
+  <div class="sub" data-i18n="sub">Z O M B I E &nbsp; C R I S I S</div>
+  <p class="desc" data-i18n="desc">夜晚降临，僵尸潮从四面八方涌来。守住每一波，活得越久，得分越高。</p>
+  <div class="keys" data-i18n-html="keysHtml">
+    <b>W A S D</b> 移动 &nbsp; <b>鼠标</b> 瞄准 &nbsp; <b>左键</b> 射击<br>
+    <b>R</b> 装填 &nbsp; <b>G / 右键</b> 手雷 &nbsp; <b>F</b> 燃烧瓶 &nbsp; <b>Q</b> 医疗包<br>
+    <b>Shift</b> 冲刺 &nbsp; <b>P</b> 暂停 &nbsp; <b>M</b> 静音 &nbsp; <b>L</b> 语言
+  </div>
+  <div class="mode-row">
+    <div class="mode-card" id="modeNormal">
+      <div class="m-tag" data-i18n="modeNormalTag">免费</div>
+      <div class="m-name" data-i18n="modeNormal">普通用户</div>
+      <div class="m-desc" data-i18n-html="modeNormalDesc">标准开局：手枪 30 发<br>完整挑战体验<br>每波强化三选一</div>
+    </div>
+    <div class="mode-card vip" id="modeVIP">
+      <div class="m-tag" data-i18n="modeVIPTag">专属特权</div>
+      <div class="m-name" data-i18n="modeVIP">VIP 用户</div>
+      <div class="m-desc" data-i18n-html="modeVIPDesc">开局特斯拉电枪 · 无限子弹<br>手雷×5 · 燃烧瓶×3 · 医疗包×3<br>得分 ×2 · 复活甲 ×2 · 紧急力场<br>每 20 秒 VIP 空投 · 每波回血 35<br>冲刺冷却 -30% · 强化卡四选一<br>专属闪电强化 · 放电 +30%</div>
+    </div>
+  </div>
+  <div class="start-hint" data-i18n="startHint"></div>
+  <div class="tip" data-i18n-html="tip">
+    补给会存入装备栏，不再即时消耗：Q 使用医疗包，G / 右键 投掷手雷，F 投掷燃烧瓶。<br>
+    每波肃清后从三张强化卡中选一张，效果持续到本局结束。<br>
+    武器箱：冲锋枪 · 霰弹枪 · 火箭筒 · 磁轨枪（穿透） · 加特林（极速）<br>
+    特殊僵尸：吐酸者（远程酸弹） · 自爆者（靠近会引爆） · 装甲者（子弹减伤，怕爆炸与火焰） · 尖啸者（狂化尸群，优先击杀）
+  </div>
+  <div class="best" id="bestStart"></div>
+</div>
+
+<!-- 结算界面 -->
+<div id="over" class="overlay hidden">
+  <h1 data-i18n="gameOverTitle">你被僵尸群吞噬了…</h1>
+  <div class="stats">
+    <span data-i18n="statScore">终局得分</span><span class="v" id="ovScore">0</span>
+    <span data-i18n="statWave">坚持波数</span><span class="v" id="ovWave">0</span>
+    <span data-i18n="statKills">击杀僵尸</span><span class="v" id="ovKills">0</span>
+    <span data-i18n="statBest">历史最高</span><span class="v" id="ovBest">0</span>
+  </div>
+  <button id="btnRetry" data-i18n="btnRetry">再来一局</button>
+  <div class="tip" data-i18n="retryTip">按 回车 快速重新开始</div>
+</div>
+
+<!-- 暂停界面 -->
+<div id="pause" class="overlay hidden">
+  <div class="ptitle" data-i18n="paused">已 暂 停</div>
+  <div class="tip" data-i18n="pauseTip">按 P 或 Esc 继续战斗</div>
+</div>
+
+<!-- 强化卡牌 -->
+<div id="cards" class="overlay hidden">
+  <div class="cards-title" data-i18n="cardsTitle"></div>
+  <div class="cards-row" id="cardsRow"></div>
+  <div class="tip" data-i18n="cardsHint"></div>
+</div>
+
+<script src="lang/zh.js"></script>
+<script src="lang/en.js"></script>
+<script src="lang/i18n.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/data.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>

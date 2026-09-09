@@ -1,0 +1,7 @@
+# 本地工具产物
+.mimosa/
+
+# 系统文件
+Thumbs.db
+Desktop.ini
+.DS_Store
