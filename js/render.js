@@ -561,9 +561,41 @@ function render() {
     ctx.fillRect(0, 0, W, H);
   }
 
-  if (state === 'playing' || state === 'gameover') drawHUD(now);
+  if (state === 'playing' || state === 'gameover') { drawOffscreenMarkers(now); drawHUD(now); }
   if (state === 'playing' && !paused) drawCrosshair();
   if (state === 'playing') drawWaveTexts();
+}
+
+// 屏幕外的残余僵尸：在屏幕边缘画一个指向箭头。
+// 为什么需要：波次要等最后一只到场才能清，而屏幕外的僵尸要几秒才走进来 ——
+// 玩家看不见就会以为"卡住了"（用户报的就是这个：以为有一只没出来，走到角落才看见）。
+// 画在暗角之后，否则最需要它的地方（屏幕边缘）恰好被暗角压暗。
+let offscreenMarkers = 0;
+function drawOffscreenMarkers(now) {
+  let drawn = 0;
+  for (const z of zombies) {
+    if (drawn >= 10) break;
+    if (z.x >= 0 && z.x <= W && z.y >= 0 && z.y <= H) continue;    // 屏内的不用提示
+    const a = Math.atan2(z.y - player.y, z.x - player.x);
+    const t = rayToBorder(player.x, player.y, a);
+    const mx = clamp(player.x + Math.cos(a) * (t - 26), 22, W - 22);
+    const my = clamp(player.y + Math.sin(a) * (t - 26), 22, H - 22);
+    ctx.globalAlpha = 0.68 + 0.32 * Math.sin(now * 6 + z.x * 0.02);
+    ctx.save();
+    ctx.translate(mx, my); ctx.rotate(a);
+    ctx.beginPath();
+    ctx.moveTo(16, 0); ctx.lineTo(-9, -10); ctx.lineTo(-3, 0); ctx.lineTo(-9, 10);
+    ctx.closePath();
+    ctx.fillStyle = z.boss ? 'rgba(255,126,96,0.98)' : hexA(z.col, 0.98);
+    ctx.fill();
+    ctx.lineWidth = 1.6;                                  // 深描边：亮地面上也要一眼看到
+    ctx.strokeStyle = 'rgba(12,16,12,0.78)';
+    ctx.stroke();
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    drawn++;
+  }
+  offscreenMarkers = drawn;
 }
 
 // HUD 面板：纵向渐变 + 顶部高光边 + 底部强调色条。

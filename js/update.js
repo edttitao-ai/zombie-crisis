@@ -232,7 +232,10 @@ function update(dt) {
     // 行走循环相位：按自身速度推进，快的僵尸迈步更快
     z.anim = (z.anim || 0) + dt * (3.4 + z.speed * 0.028);
     const a = Math.atan2(p.y - z.y, p.x - z.x);
-    const sp = z.speed * (z.buffT > 0 ? 1.5 : 1) * (z.slowT > 0 ? 0.55 : 1); // 狂化加速 / 被光环拖慢
+    // 屏幕外的僵尸走快一点：玩家看不见，不该让他干等。进屏立即恢复原速，
+    // 所以"难度"只发生在看得见的地方（理由与实测数据见 data.js 的 WALKIN_MUL）。
+    const outside = z.x < 0 || z.x > W || z.y < 0 || z.y > H;
+    const sp = z.speed * (z.buffT > 0 ? 1.5 : 1) * (z.slowT > 0 ? 0.55 : 1) * (outside ? WALKIN_MUL : 1); // 狂化加速 / 被光环拖慢 / 走进场
     z.x += Math.cos(a) * sp * dt;
     z.y += Math.sin(a) * sp * dt;
     if (z.type === 'runner') { // 疾跑者蛇形走位

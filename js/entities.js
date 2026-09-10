@@ -19,14 +19,19 @@ function spawnAt(type, x, y) {
 // 同样是 25% 的概率被压在更小的角度里 —— 实测东西方向来怪的密度是上下的 1.45 倍
 // （12 桶峰值/理想 1.53x）。玩几局之后玩家就会条件反射地把枪口对着左右。
 // 改成按角度均匀取样后，任何方向来怪的概率都一样。
-function spawnPointAt(a) {
-  const c = Math.cos(a), s = Math.sin(a), px = player.x, py = player.y;
-  let t = Infinity;                                  // 沿该方向走到屏幕边框的距离
+// 从 (px,py) 沿角度 a 走到屏幕边框的距离。刷怪落点与"屏幕外指示标"共用同一套几何，
+// 免得两处各写一份、改一处忘一处。
+function rayToBorder(px, py, a) {
+  const c = Math.cos(a), s = Math.sin(a);
+  let t = Infinity;
   if (Math.abs(c) > 1e-6) t = Math.min(t, c > 0 ? (W - px) / c : -px / c);
   if (Math.abs(s) > 1e-6) t = Math.min(t, s > 0 ? (H - py) / s : -py / s);
-  if (!(t > 0) || t === Infinity) t = Math.max(W, H) * 0.5;   // 玩家贴边时的兜底
+  return (t > 0 && t !== Infinity) ? t : Math.max(W, H) * 0.5;   // 玩家贴边时的兜底
+}
+function spawnPointAt(a) {
   const m = SPAWN_MARGIN_MIN + Math.random() * SPAWN_MARGIN_VAR;
-  return { x: px + c * (t + m), y: py + s * (t + m) };
+  const t = rayToBorder(player.x, player.y, a);
+  return { x: player.x + Math.cos(a) * (t + m), y: player.y + Math.sin(a) * (t + m) };
 }
 // atAngle 传入时表示"和上一只同一股"，只做小幅散开；不传则是全新的随机方向。
 function spawnZombie(atAngle) {
