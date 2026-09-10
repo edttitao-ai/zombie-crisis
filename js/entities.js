@@ -4,11 +4,11 @@
 // 在指定位置生成一只僵尸。Boss 也走这条路（行为差异在 update 里按 z.boss 分支）。
 function spawnAt(type, x, y) {
   const d = ZDEF[type];
-  const hp = d.hp + wave * d.hpW;
+  const hp = zombieHp(d, wave);
   zombies.push({
     x, y, type, r: d.r, hp, maxHp: hp,
     speed: Math.min(d.spdCap, (d.spd + wave * d.spdW) * rand(0.9, 1.1)),
-    dmg: d.dmg, col: d.col, sc: d.sc, boss: d.boss || null,
+    dmg: zombieDmg(d, wave), col: d.col, sc: d.sc, boss: d.boss || null,
     flash: 0, atkCd: rand(0.2, 0.6), wob: rand(0, 6.28), anim: rand(0, WALK_FRAMES),
     spitCd: rand(1, 2), screamCd: rand(2, 4), screamT: 0, buffT: 0, fuseT: -1, boomed: false
   });

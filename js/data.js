@@ -139,27 +139,48 @@ function curMagSize() { return Math.round(WEAPONS[player.weapon].magSize * upg.m
 // col 同时决定玩家辨识度：四种绿系保持腐肉底色但把色相拉开，装甲者改为钢蓝
 // （原来是灰绿 #6b7a6b，饱和度仅 0.19，灰对灰最难辨认）
 const ZDEF = {
-  normal:   { r: 14, hp: 30,  hpW: 5,  spd: 58,  spdW: 3,   spdCap: 115, dmg: 10, col: '#628f45', sc: 10, minWave: 1 },
-  runner:   { r: 11, hp: 20,  hpW: 3,  spd: 128, spdW: 4,   spdCap: 195, dmg: 8,  col: '#a8b03c', sc: 15, minWave: 2 },
-  spitter:  { r: 13, hp: 26,  hpW: 4,  spd: 55,  spdW: 2,   spdCap: 80,  dmg: 6,  col: '#74a038', sc: 15, minWave: 3 },
-  bloater:  { r: 20, hp: 60,  hpW: 8,  spd: 38,  spdW: 1.5, spdCap: 60,  dmg: 0,  col: '#a89040', sc: 20, minWave: 3 },
-  shielder: { r: 15, hp: 55,  hpW: 8,  spd: 62,  spdW: 2.5, spdCap: 105, dmg: 12, col: '#7a94aa', sc: 25, minWave: 4 },
-  screamer: { r: 12, hp: 24,  hpW: 4,  spd: 70,  spdW: 3,   spdCap: 120, dmg: 6,  col: '#c26aa6', sc: 25, minWave: 5 },
-  brute:    { r: 24, hp: 120, hpW: 12, spd: 42,  spdW: 1.5, spdCap: 70,  dmg: 22, col: '#457a35', sc: 30, minWave: 4 },
+  normal:   { r: 14, hp: 30,  spd: 58,  spdW: 3,   spdCap: 115, dmg: 10, col: '#628f45', sc: 10, minWave: 1 },
+  runner:   { r: 11, hp: 20,  spd: 128, spdW: 4,   spdCap: 195, dmg: 8,  col: '#a8b03c', sc: 15, minWave: 2 },
+  spitter:  { r: 13, hp: 26,  spd: 55,  spdW: 2,   spdCap: 80,  dmg: 6,  col: '#74a038', sc: 15, minWave: 3 },
+  bloater:  { r: 20, hp: 60,  spd: 38,  spdW: 1.5, spdCap: 60,  dmg: 0,  col: '#a89040', sc: 20, minWave: 3 },
+  shielder: { r: 15, hp: 55,  spd: 62,  spdW: 2.5, spdCap: 105, dmg: 12, col: '#7a94aa', sc: 25, minWave: 4 },
+  screamer: { r: 12, hp: 24,  spd: 70,  spdW: 3,   spdCap: 120, dmg: 6,  col: '#c26aa6', sc: 25, minWave: 5 },
+  brute:    { r: 24, hp: 120, spd: 42,  spdW: 1.5, spdCap: 70,  dmg: 22, col: '#457a35', sc: 30, minWave: 4 },
 
   // ===== Boss：每 5 波登场（由 startWave 显式投放，不进 SPAWN_TABLE，
   //       所以这里不写 minWave —— 写了也不会被读取，属于死数据）=====
   // 屠夫：巨型近战，走近后周期性震地（范围伤害），死亡时大爆炸 + 掉落雨
-  butcher:  { r: 34, hp: 900, hpW: 210, spd: 46, spdW: 1.2, spdCap: 84, dmg: 30, col: '#a8452f', sc: 300, boss: 'butcher', nameKey: 'zButcher' },
+  butcher:  { r: 34, hp: 900, spd: 46, spdW: 1.2, spdCap: 84, dmg: 30, col: '#a8452f', sc: 300, boss: 'butcher', nameKey: 'zButcher' },
   // 腐化母体：保持距离喷酸扇面，并周期召唤尸群；逼玩家主动压上去
-  brood:    { r: 30, hp: 820, hpW: 180, spd: 40, spdW: 1.0, spdCap: 72, dmg: 18, col: '#8a4fa8', sc: 320, boss: 'brood', nameKey: 'zBrood' },
+  brood:    { r: 30, hp: 820, spd: 40, spdW: 1.0, spdCap: 72, dmg: 18, col: '#8a4fa8', sc: 320, boss: 'brood', nameKey: 'zBrood' },
   // 冲撞者：蓄力后直线猛冲（有预警线），撞完进入硬直 —— 逼你横向闪避、再抓硬直输出
-  charger:  { r: 30, hp: 780, hpW: 175, spd: 52, spdW: 1.1, spdCap: 88, dmg: 26, col: '#d2691e', sc: 310, boss: 'charger', nameKey: 'zCharger' },
+  charger:  { r: 30, hp: 780, spd: 52, spdW: 1.1, spdCap: 88, dmg: 26, col: '#d2691e', sc: 310, boss: 'charger', nameKey: 'zCharger' },
   // 迫击者：远距离抛射带落点警示的炮弹 —— 区域封锁，逼你一直移动
-  mortar:   { r: 32, hp: 800, hpW: 178, spd: 34, spdW: 0.8, spdCap: 62, dmg: 16, col: '#7d8f3a', sc: 310, boss: 'mortar', nameKey: 'zMortar' },
+  mortar:   { r: 32, hp: 800, spd: 34, spdW: 0.8, spdCap: 62, dmg: 16, col: '#7d8f3a', sc: 310, boss: 'mortar', nameKey: 'zMortar' },
   // 纳尸者：把地上的尸体重新拉起来（并回复自身）—— 不清场就会被自己的战果反噬
-  necro:    { r: 31, hp: 860, hpW: 185, spd: 38, spdW: 0.9, spdCap: 68, dmg: 20, col: '#3f8f7d', sc: 330, boss: 'necro', nameKey: 'zNecro' }
+  necro:    { r: 31, hp: 860, spd: 38, spdW: 0.9, spdCap: 68, dmg: 20, col: '#3f8f7d', sc: 330, boss: 'necro', nameKey: 'zNecro' }
 };
+
+/* ===== 随波次的成长曲线（调难度主要改这里）=====
+   血量必须用**复利**，因为玩家的输出是乘算成长：强化卡的伤害 ×2.35、射速 ×2.15、
+   暴击期望 ×1.9 叠起来约 ×9.6，而原先的线性 `hp + wave × hpW`（普通每波 +5 血）
+   在 30 波里只涨到 5 倍 —— 实测最强武器从第 1 波到第 30 波的击杀耗时几乎一样，
+   后期「随便就秒杀」。改用 base × (1+g)^(波次-1) 才追得上玩家的曲线。
+   Boss 基础血本来就高（900 上下），同用指数会在 30 波变成两万血的血包，
+   所以它走**线性比例**：base × (1 + g × (波次-1))。
+   伤害同样复利但斜率更缓、并且封顶 —— 后期压力不该只靠血厚。 */
+const HP_GROW = 0.11;        // 杂兵血量复利：每波 ×1.11
+const BOSS_HP_GROW = 0.12;   // Boss 血量线性比例：每波 +12% 基准值
+const DMG_GROW = 0.05;       // 僵尸伤害复利：每波 ×1.05
+const DMG_GROW_CAP = 4;      // 伤害最多涨到基准的 4 倍（约第 30 波触顶）
+function zombieHp(d, w) {
+  const n = Math.max(0, w - 1);   // 第 1 波 = 基准值；开局 wave=0 也按基准算
+  return Math.round(d.boss ? d.hp * (1 + BOSS_HP_GROW * n) : d.hp * Math.pow(1 + HP_GROW, n));
+}
+function zombieDmg(d, w) {
+  const n = Math.max(0, w - 1);
+  return Math.round(d.dmg * Math.min(DMG_GROW_CAP, Math.pow(1 + DMG_GROW, n)));
+}
 // Boss 轮换顺序：每 5 波一只，循环。改这里就能改出场次序。
 const BOSS_ORDER = ['butcher', 'brood', 'charger', 'mortar', 'necro'];
 // 出场概率阈值表：[类型, 累计阈值]，数组顺序即优先级。未到 minWave 的类型被跳过，
