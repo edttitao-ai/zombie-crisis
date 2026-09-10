@@ -194,41 +194,13 @@ function buildVignette() {
   g.fillRect(0, 0, W, H);
 }
 
-// 七种僵尸的俯视人形绘装：宽肩躯干 + 前伸抓臂 + 拖沓双腿 + 前倾头部
-// 精灵面朝 -Y 绘制，渲染时整体旋向玩家
+// 十二种杂兵的俯视人形绘装：斜方肩甲 + 前伸抓臂 + 前后迈步的短腿 + 顶视头颅
+// 精灵一律按「面朝 -Y」绘制，渲染时整体 rotate 旋向玩家（主角同此约定）
 /* ===== 精灵绘制 =====
    全部预渲染，逐帧只做一次 drawImage。统一光照假设：主光在左上、冷环境光在四周 ——
-   体积渐变、边缘光、接触阴影都遵守它，这样七种僵尸与主角看起来才像在同一个场景里。 */
-
-// 径向渐变填充：中心偏亮、边缘偏暗，把平涂的椭圆变成有体积的形体。
-// 渐变整体偏亮（中心 +0.50、边缘只暗到 -0.26）：若暗面过重会把实体的平均明度
-// 压向地面，反而降低可辨识度 —— 体积感要，但不能靠整体压暗换。
-function volumeEllipse(g, x, y, rx, ry, col, rot) {
-  const grd = g.createRadialGradient(x - rx * 0.36, y - ry * 0.44, Math.max(0.5, rx * 0.10),
-                                     x, y, Math.max(rx, ry) * 1.15);
-  grd.addColorStop(0, shade(col, 0.50));
-  grd.addColorStop(0.60, col);
-  grd.addColorStop(1, shade(col, -0.26));
-  g.fillStyle = grd;
-  g.beginPath();
-  g.ellipse(x, y, rx, ry, rot || 0, 0, 7);
-  g.fill();
-}
-
-// 肢体：暗底 + 偏左上的亮芯 → 圆柱感（平涂圆头线段看起来是塑料棒）。
-// 暗底不能压太狠：肢体在占实体面积的比例不小，暗底过重会整体拉低实体明度。
-function volumeLimb(g, x0, y0, mx, my, x1, y1, w, col) {
-  g.lineCap = 'round';
-  g.strokeStyle = shade(col, -0.14);
-  g.lineWidth = w;
-  g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo(mx, my, x1, y1); g.stroke();
-  g.save();
-  g.translate(-w * 0.17, -w * 0.22);
-  g.strokeStyle = shade(col, 0.42);
-  g.lineWidth = w * 0.46;
-  g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo(mx, my, x1, y1); g.stroke();
-  g.restore();
-}
+   受光面、边缘光、接触阴影都遵守它，十二种僵尸与主角才像在同一个场景里。
+   形体的可读性靠「硬边路径 + 明度分层（暗底 / 中间调 / 顶面 / 硬边高光）」，不靠细节：
+   实际显示尺寸只有 28–48px，软渐变叠软渐变只会糊成一坨（旧的体积渐变圆叠圆就是这样）。 */
 
 // 统一的精灵后处理（烘焙，逐帧零开销）：八向深描边把实体从地面里拉出来，
 // 偏移的彩色轮廓作为边缘光交代光源方向。destination-over 逐层下沉，
@@ -250,6 +222,12 @@ function finishSprite(src, rimCol, dpr) {
 
 // 一帧僵尸姿态。ph ∈ [0,1) 是行走相位：双腿交替迈步、双臂前后摆、躯干起伏侧倾。
 // 此前只有疾跑者推进 wob，其余六种僵尸完全没有行走动画，只是在滑行 —— 这是最大的观感缺口。
+// 眼部发光强度：把"发光"当稀缺资源用 —— 普通杂兵只留暗眼窝里一点微光，
+// 精英与 Boss 才给足红光。旧版所有僵尸都是两个高饱和大红眼 + 一张大嘴，那是表情包语法。
+const EYE_GLOW = {
+  normal: 0.22, runner: 0.18, spitter: 0.28, bloater: 0.16, shielder: 0.55, screamer: 0.50,
+  brute: 0.62, splitter: 0.34, leaper: 0.40, revenant: 0.46, spore: 0.26, half: 0.18
+};
 function drawZombiePose(g, type, R, ph, S2, det) {
   const col = ZDEF[type].col;
   const skin = shade(col, 0.40);
@@ -259,14 +237,15 @@ function drawZombiePose(g, type, R, ph, S2, det) {
   const X = v => cx + v * R, Y = v => cy + v * R;
 
   // 体型 + 姿态：lean 为前倾量（疾跑者前扑、装甲者顶盾、尖啸者后仰）
-  let torsoW = 0.72, torsoH = 0.62, armLen = 1.3, armW = 0.30, headR = 0.42, headY = -0.5;
-  let aL = 0.32, aR = 0.44, fistR = 0.20, lean = 0;
-  if (type === 'runner')   { torsoW = 0.50; torsoH = 0.68; armLen = 0.62; headR = 0.46; headY = -0.62; aL = 0.56; aR = 0.60; lean = -0.08; }
-  if (type === 'bloater')  { torsoW = 0.95; torsoH = 0.92; armLen = 0.75; armW = 0.34; headR = 0.32; headY = -0.44; aL = 0.42; aR = 0.50; }
-  if (type === 'brute')    { torsoW = 0.98; torsoH = 0.72; armLen = 1.18; armW = 0.46; headR = 0.34; headY = -0.44; aL = 0.40; aR = 0.50; fistR = 0.30; lean = -0.05; }
-  if (type === 'screamer') { torsoW = 0.60; headR = 0.48; headY = -0.58; aL = 0.62; aR = 0.62; lean = 0.06; }
-  if (type === 'spitter')  { torsoW = 0.78; headR = 0.40; }
-  if (type === 'shielder') { torsoW = 0.68; lean = -0.04; }
+  // 头要小、臂要短而外扩 —— 头大 + 细长臂贴着脑袋是小尺寸下"像表情包"的主因
+  let torsoW = 0.78, torsoH = 0.72, armLen = 0.90, armW = 0.34, headR = 0.34, headY = -0.56;
+  let aL = 0.44, aR = 0.52, fistR = 0.19, lean = 0;
+  if (type === 'runner')   { torsoW = 0.56; torsoH = 0.74; armLen = 0.62; armW = 0.26; headR = 0.32; headY = -0.66; aL = 0.48; aR = 0.56; lean = -0.12; }
+  if (type === 'bloater')  { torsoW = 0.98; torsoH = 0.92; armLen = 0.70; armW = 0.34; headR = 0.30; headY = -0.50; aL = 0.46; aR = 0.52; }
+  if (type === 'brute')    { torsoW = 1.02; torsoH = 0.80; armLen = 0.95; armW = 0.50; headR = 0.28; headY = -0.52; aL = 0.52; aR = 0.60; fistR = 0.28; lean = -0.04; }
+  if (type === 'screamer') { torsoW = 0.62; headR = 0.34; headY = -0.62; aL = 0.48; aR = 0.52; lean = 0.06; }
+  if (type === 'spitter')  { torsoW = 0.80; headR = 0.32; headY = -0.54; }
+  if (type === 'shielder') { torsoW = 0.72; headR = 0.32; headY = -0.54; lean = -0.04; }
   // 第二轮扩充的杂兵：体型也要能一眼区分，不能只靠颜色
   if (type === 'splitter') { torsoW = 1.05; torsoH = 0.80; armLen = 0.70; armW = 0.34; headR = 0.30; headY = -0.42; aL = 0.36; aR = 0.44; lean = 0.02; }
   if (type === 'leaper')   { torsoW = 0.80; torsoH = 0.58; armLen = 0.55; armW = 0.26; headR = 0.34; headY = -0.44; aL = 0.40; aR = 0.48; lean = -0.20; }
@@ -291,51 +270,112 @@ function drawZombiePose(g, type, R, ph, S2, det) {
   const bob = Math.abs(Math.cos(pL));               // 双腿并拢时躯干最高
   const sway = Math.sin(pL) * 0.05;                 // 左右侧倾
 
-  // 1) 双腿：前后摆 + 抬脚
-  volumeEllipse(g, X(-0.29 + sway), Y(0.86 - lFwd * 0.30 - lUp * 0.10), R * 0.17, R * 0.43, shade(col, -0.28), -0.2);
-  volumeEllipse(g, X(0.31 + sway), Y(0.86 + rFwd * 0.30 - rUp * 0.10), R * 0.17, R * 0.41, shade(col, -0.28), 0.25);
+  // 1) 双腿：俯视角只看得到一小截在身侧前后迈步（-Y 是"前"）；抬脚项保证 4 帧互不相同
+  const legW = Math.max(0.13, torsoW * 0.20);
+  for (const [sx, st, up] of [[-torsoW * 0.42, lFwd, lUp], [torsoW * 0.42, rFwd, rUp]]) {
+    g.fillStyle = shade(col, -0.46);
+    rr(g, X(sx + sway) - R * legW, Y(0.30 + st * 0.26 - up * 0.10),
+       R * legW * 2, R * (0.60 - up * 0.12), R * legW * 0.8);
+    g.fill();
+  }
 
-  // 2) 躯干：体积渐变 + 破洞 + 血污
+  // 2) 躯干：硬边路径（肩宽 → 后收），暗底 + 受光面两级明度。
+  //    旧版是一颗软渐变椭圆，与头、手臂同明度 —— 缩到 30px 就糊成一坨。
   const ty = 0.12 - bob * 0.05 + lean;
-  volumeEllipse(g, cx, Y(ty), R * torsoW, R * torsoH, cloth, 0);
+  const halfW = torsoW * 0.52, backY = ty + torsoH * 0.62;
+  const torsoPath = () => {
+    g.beginPath();
+    g.moveTo(X(-halfW * 1.12), Y(ty - torsoH * 0.52));
+    g.lineTo(X(halfW * 1.12), Y(ty - torsoH * 0.52));
+    g.lineTo(X(halfW), Y(backY - 0.10));
+    g.quadraticCurveTo(cx, Y(backY + 0.10), X(-halfW), Y(backY - 0.10));
+    g.closePath();
+  };
+  g.fillStyle = cloth;
+  torsoPath(); g.fill();
+  g.fillStyle = shade(col, 0.02);                        // 受光面（略小、偏前）
+  g.beginPath();
+  g.moveTo(X(-halfW * 0.92), Y(ty - torsoH * 0.46));
+  g.lineTo(X(halfW * 0.92), Y(ty - torsoH * 0.46));
+  g.lineTo(X(halfW * 0.78), Y(ty + torsoH * 0.16));
+  g.quadraticCurveTo(cx, Y(ty + torsoH * 0.40), X(-halfW * 0.78), Y(ty + torsoH * 0.16));
+  g.closePath(); g.fill();
+  // 破洞与血污：裁进躯干路径里，避免"贴在身上"的浮空感
+  g.save();
+  torsoPath(); g.clip();
   for (const tt of det.tatters) {
-    g.fillStyle = 'rgba(0,0,0,0.16)';
+    g.fillStyle = 'rgba(0,0,0,0.20)';
     g.beginPath();
     g.ellipse(cx + tt[0] * R * torsoW, Y(ty + tt[1]), R * tt[2], R * tt[3], tt[4], 0, 7);
     g.fill();
   }
-  g.fillStyle = 'rgba(86,14,14,0.72)';
-  g.beginPath(); g.ellipse(cx, Y(ty + 0.33), R * 0.22, R * 0.13, 0, 0, 7); g.fill();
+  g.fillStyle = 'rgba(96,16,16,0.75)';                   // 血污：不受光的高饱和暗红
+  g.beginPath(); g.ellipse(cx + R * 0.08, Y(ty + torsoH * 0.30), R * 0.20, R * 0.12, 0.3, 0, 7); g.fill();
+  g.restore();
 
-  // 3) 双臂前伸抓握，与腿反相摆动（对侧摆臂）
-  const swL = -lFwd * 0.16, swR = -rFwd * 0.16;
-  const shY = ty - 0.16;
-  volumeLimb(g, X(-torsoW * 0.6), Y(shY), X(-aL - 0.15), Y(-0.60 + lean + swL), X(-aL), Y(-armLen + lean - swL * 0.6), R * armW, skinDk);
-  volumeLimb(g, X(torsoW * 0.6), Y(shY + 0.06), X(aR + 0.12), Y(-0.50 + lean + swR), X(aR), Y(-armLen * 0.9 + lean - swR * 0.6), R * armW, skinDk);
-  for (const f of [[X(-aL), Y(-armLen + lean - swL * 0.6)], [X(aR), Y(-armLen * 0.9 + lean - swR * 0.6)]]) {
-    volumeEllipse(g, f[0], f[1], R * fistR, R * fistR, skin, 0);
+  // 3) 肩：两块外扩的斜方板 —— 和主角同一套语言，俯视角下最强的识别形状
+  for (const sgn of [-1, 1]) {
+    g.fillStyle = shade(col, -0.18);
+    g.beginPath();
+    g.moveTo(X(sgn * halfW * 0.80), Y(ty - torsoH * 0.56));
+    g.lineTo(X(sgn * (halfW + 0.22)), Y(ty - torsoH * 0.30));
+    g.lineTo(X(sgn * (halfW + 0.16)), Y(ty + torsoH * 0.12));
+    g.lineTo(X(sgn * halfW * 0.78), Y(ty - torsoH * 0.02));
+    g.closePath(); g.fill();
   }
 
-  // 4) 头：体积渐变 + 脑后乱发 + 面部暗面 + 红眼 + 颈部创伤
+  // 4) 双臂：短、粗、外扩，手落在身前。旧版是两根细长杆贴着脑袋两侧伸出去、
+  //    末端还挂一个亮球 —— 小尺寸下读成"兔耳/钳子"，这是"像表情包"的主因之一。
+  const swL = -lFwd * 0.16, swR = -rFwd * 0.16;
+  const shY = ty - torsoH * 0.34;
+  const reach = Math.min(armLen, 0.95);
+  for (const [sgn, sw, ax] of [[-1, swL, aL], [1, swR, aR]]) {
+    g.strokeStyle = skinDk; g.lineCap = 'round';
+    g.lineWidth = R * (armW * 1.9);
+    g.beginPath();
+    g.moveTo(X(sgn * (halfW + 0.06)), Y(shY));
+    g.lineTo(X(sgn * (ax + 0.20)), Y(shY - reach * 0.45));
+    g.stroke();
+    g.lineWidth = R * (armW * 1.5);
+    g.beginPath();
+    g.moveTo(X(sgn * (ax + 0.20)), Y(shY - reach * 0.45));
+    g.lineTo(X(sgn * (ax + 0.06)), Y(shY - reach + sw));
+    g.stroke();
+    g.fillStyle = skinDk;                                // 手：暗一档，别在场上读成亮球
+    g.beginPath(); g.arc(X(sgn * (ax + 0.06)), Y(shY - reach + sw), R * fistR * 0.85, 0, 7); g.fill();
+  }
+
+  // 5) 头：俯视角看到的是颅顶。外圈一圈更暗的边，把头从躯干上"切"出来 ——
+  //    旧版头几乎压在躯干上又是同明度，两个球糊在一起。
+  //    五官改成暗眼窝 + 一点昏暗红光；发光留给精英/Boss，普通怪不再是大红眼 + 大嘴。
   const hx = cx + sway * R * 0.9, hy = Y(headY + lean - bob * 0.03);
-  volumeEllipse(g, hx, hy, R * headR, R * headR, skin, 0);
-  g.save();
-  g.beginPath(); g.arc(hx, hy, R * headR, 0, 7); g.clip();
-  g.fillStyle = 'rgba(20,15,9,0.94)';
-  g.beginPath(); g.ellipse(hx, hy + R * headR * 0.46, R * headR * 0.80, R * headR * 0.60, 0, 0, 7); g.fill();
-  g.fillStyle = 'rgba(0,0,0,0.30)';
-  g.beginPath(); g.ellipse(hx, hy - R * headR * 0.52, R * headR * 0.86, R * headR * 0.52, 0, 0, 7); g.fill();
-  g.restore();
-  // 红眼：外圈辉光 + 亮点，小尺寸下也读得出「这是眼睛」
-  const eyeR = Math.max(1.15, R * 0.085);
-  g.fillStyle = 'rgba(255,74,48,0.30)';
-  g.beginPath(); g.arc(hx - R * headR * 0.40, hy - R * headR * 0.56, eyeR * 2.3, 0, 7); g.fill();
-  g.beginPath(); g.arc(hx + R * headR * 0.40, hy - R * headR * 0.56, eyeR * 2.3, 0, 7); g.fill();
-  g.fillStyle = '#ff6247';
-  g.beginPath(); g.arc(hx - R * headR * 0.40, hy - R * headR * 0.56, eyeR, 0, 7); g.fill();
-  g.beginPath(); g.arc(hx + R * headR * 0.40, hy - R * headR * 0.56, eyeR, 0, 7); g.fill();
-  g.fillStyle = 'rgba(86,13,13,0.88)';
-  g.beginPath(); g.ellipse(hx, hy + R * headR * 0.88, R * headR * 0.5, R * headR * 0.3, 0, 0, 7); g.fill();
+  g.fillStyle = shade(col, -0.50);                       // 颅骨外圈：把头从躯干上"切"出来
+  g.beginPath(); g.arc(hx, hy, R * headR * 1.10, 0, 7); g.fill();
+  g.fillStyle = cloth;                                   // 头不能用提亮色，否则场上读成一颗发白的球
+  g.beginPath(); g.arc(hx, hy, R * headR, 0, 7); g.fill();
+  g.fillStyle = shade(col, 0.18);                        // 颅顶受光（偏左上）
+  g.beginPath(); g.arc(hx - R * headR * 0.16, hy - R * headR * 0.16, R * headR * 0.60, 0, 7); g.fill();
+  const gl = ZDEF[type].boss ? 0.9 : (EYE_GLOW[type] !== undefined ? EYE_GLOW[type] : 0.3);
+  for (const sgn of [-1, 1]) {
+    g.fillStyle = 'rgba(12,10,8,0.78)';                  // 眼窝
+    g.beginPath();
+    g.ellipse(hx + sgn * R * headR * 0.42, hy - R * headR * 0.34, R * headR * 0.24, R * headR * 0.17, 0, 0, 7);
+    g.fill();
+    if (gl > 0.05) {
+      g.fillStyle = 'rgba(255,86,58,' + gl * 0.30 + ')';
+      g.beginPath(); g.arc(hx + sgn * R * headR * 0.42, hy - R * headR * 0.34, R * headR * 0.26, 0, 7); g.fill();
+      g.fillStyle = 'rgba(255,124,92,' + gl + ')';
+      g.beginPath();
+      g.arc(hx + sgn * R * headR * 0.42, hy - R * headR * 0.34, Math.max(1, R * headR * 0.12), 0, 7);
+      g.fill();
+    }
+  }
+  g.fillStyle = 'rgba(24,12,10,0.55)';                   // 颌下阴影：窄而小（旧版是一张大嘴）
+  g.beginPath();
+  g.ellipse(hx, hy + R * headR * 0.62, R * headR * 0.30, R * headR * 0.14, 0, 0, 7);
+  g.fill();
+  g.fillStyle = 'rgba(86,13,13,0.80)';                   // 颈部创伤
+  g.beginPath(); g.ellipse(hx, hy + R * headR * 1.02, R * headR * 0.34, R * headR * 0.18, 0, 0, 7); g.fill();
 
   // 5) 类型专属细节
   if (type === 'shielder') {
@@ -545,46 +585,105 @@ function drawHeroPose(g, R, ph, S2) {
   const col = PAL.heroCol;
   const cx = S2, cy = S2;
   const X = v => cx + v * R, Y = v => cy + v * R;
-  // 同僵尸：左右腿各一个相位，保证 4 帧互不相同
+  // 精灵一律按「朝 -Y」绘制，游戏内再 rotate(a+π/2) 把 -Y 对齐到朝向。所以这里的
+  // -Y 就是"前"、+Y 是"后"，迈步也是沿 Y（前后）而不是左右摆。
   const pL = ph * TAU, pR = pL + Math.PI;
-  const lFwd = Math.cos(pL), rFwd = Math.cos(pR);
-  const lUp = Math.max(0, Math.sin(pL)), rUp = Math.max(0, Math.sin(pR));  // 抬脚，用于区分两个过渡帧
+  const stepL = Math.cos(pL), stepR = Math.cos(pR);
+  // 抬脚项不能省：cos 关于半周期对称，只用它会第 1 帧与第 3 帧完全一样（4 帧只剩 2 个姿势）
+  const upL = Math.max(0, Math.sin(pL)), upR = Math.max(0, Math.sin(pR));
   const bob = Math.abs(Math.cos(pL));
-  const boot = shade('#2d3527', 0.06);
+  // 四级明度：暗底 / 中间调 / 顶面 / 硬边高光。小尺寸下可读性靠这个，不靠细节。
+  const base = shade(col, -0.34), top = shade(col, 0.06), hi = shade(col, 0.34), plate = shade(col, 0.16);
+  const gear = '#2c3429', gearHi = '#3f4a3c';
 
-  volumeEllipse(g, cx, Y(0.36), R * 0.52, R * 0.40, shade(col, -0.40), 0);          // 背包
-  volumeEllipse(g, X(-0.28), Y(0.70 - lFwd * 0.28 - lUp * 0.09), R * 0.17, R * 0.36, boot, -0.12); // 双腿
-  volumeEllipse(g, X(0.28), Y(0.70 + rFwd * 0.28 - rUp * 0.09), R * 0.17, R * 0.36, boot, 0.12);
-  g.fillStyle = '#1b201a';                                                          // 靴子
-  g.beginPath(); g.ellipse(X(-0.28), Y(0.94 - lFwd * 0.30 - lUp * 0.09), R * 0.19, R * 0.19, 0, 0, 7); g.fill();
-  g.beginPath(); g.ellipse(X(0.28), Y(0.94 + rFwd * 0.30 - rUp * 0.09), R * 0.19, R * 0.19, 0, 0, 7); g.fill();
+  // 1) 腿：俯视角只看得到一小截在身侧前后迈步；抬脚的那一步收短一点
+  for (const [sx, st, up] of [[-0.30, stepL, upL], [0.30, stepR, upR]]) {
+    g.fillStyle = gear;
+    rr(g, X(sx) - R * 0.17, Y(0.16 + st * 0.24 - up * 0.10), R * 0.34, R * (0.62 - up * 0.12), R * 0.15);
+    g.fill();
+  }
 
-  volumeEllipse(g, cx, Y(0.08 - bob * 0.04), R * 0.84, R * 0.74, col, 0);          // 躯干
-  g.fillStyle = 'rgba(255,255,255,0.07)';                                          // 胸前护板
-  g.beginPath(); g.ellipse(cx, Y(-0.06 - bob * 0.04), R * 0.52, R * 0.34, 0, 0, 7); g.fill();
-  volumeEllipse(g, X(-0.80), Y(-0.22 - bob * 0.04), R * 0.36, R * 0.31, shade(col, 0.18), -0.22); // 肩甲
-  volumeEllipse(g, X(0.80), Y(-0.22 - bob * 0.04), R * 0.36, R * 0.31, shade(col, 0.18), 0.22);
+  // 2) 背包：肩后一块方硬块（先画，被躯干压住一部分）
+  g.fillStyle = gear;
+  rr(g, X(-0.42), Y(0.06), R * 0.84, R * 0.50, R * 0.12);
+  g.fill();
+  g.fillStyle = gearHi;
+  rr(g, X(-0.42), Y(0.06), R * 0.84, R * 0.14, R * 0.07);
+  g.fill();
 
-  // 双臂持枪：带轻微对侧摆，走路时肩膀跟着动
-  const armCol = shade(col, 0.12);
-  const alY = -0.26 - bob * 0.04;
-  const laY = alY - lFwd * 0.035, raY = alY - rFwd * 0.035;
-  volumeLimb(g, X(-0.62), Y(laY), X(-0.74), Y(-0.72), X(-0.24), Y(-1.06), R * 0.30, armCol);
-  volumeLimb(g, X(0.62), Y(raY), X(0.74), Y(-0.72), X(0.24), Y(-1.06), R * 0.30, armCol);
-  volumeEllipse(g, X(-0.24), Y(-1.06), R * 0.19, R * 0.19, '#242a22', 0);          // 手套
-  volumeEllipse(g, X(0.24), Y(-1.06), R * 0.19, R * 0.19, '#242a22', 0);
+  // 3) 躯干：硬边路径（肩宽→腰收）。暗底 + 受光面两级，比"处处软渐变"清楚得多
+  g.fillStyle = base;
+  g.beginPath();
+  g.moveTo(X(-0.56), Y(-0.26));
+  g.lineTo(X(0.56), Y(-0.26));
+  g.lineTo(X(0.44), Y(0.30));
+  g.quadraticCurveTo(cx, Y(0.54), X(-0.44), Y(0.30));
+  g.closePath(); g.fill();
+  g.fillStyle = top;
+  g.beginPath();
+  g.moveTo(X(-0.46), Y(-0.24 - bob * 0.02));
+  g.lineTo(X(0.46), Y(-0.24 - bob * 0.02));
+  g.lineTo(X(0.36), Y(0.16));
+  g.quadraticCurveTo(cx, Y(0.34), X(-0.36), Y(0.16));
+  g.closePath(); g.fill();
+  g.fillStyle = hi;                                  // 胸甲：一条窄硬边高光面
+  g.beginPath();
+  g.moveTo(X(-0.30), Y(-0.22));
+  g.lineTo(X(0.30), Y(-0.22));
+  g.lineTo(X(0.22), Y(-0.02));
+  g.lineTo(X(-0.22), Y(-0.02));
+  g.closePath(); g.fill();
 
-  const hy = Y(-0.66 - bob * 0.03);                                                // 头盔
-  volumeEllipse(g, cx, hy, R * 0.48, R * 0.48, shade(col, 0.24), 0);
-  g.save();
-  g.beginPath(); g.arc(cx, hy, R * 0.48, 0, 7); g.clip();
-  g.fillStyle = 'rgba(13,19,25,0.80)';                                             // 面罩
-  g.beginPath(); g.ellipse(cx, hy - R * 0.20, R * 0.46, R * 0.24, 0, 0, 7); g.fill();
-  g.fillStyle = 'rgba(150,205,255,0.50)';                                          // 护目镜反光
-  g.beginPath(); g.ellipse(cx, hy - R * 0.25, R * 0.31, R * 0.07, 0, 0, 7); g.fill();
-  g.restore();
-  g.fillStyle = 'rgba(255,255,255,0.16)';                                          // 盔顶高光
-  g.beginPath(); g.ellipse(cx - R * 0.12, hy - R * 0.30, R * 0.20, R * 0.09, -0.4, 0, 7); g.fill();
+  // 4) 肩甲：俯视角最强的识别形状 —— 两块外扩的斜方板（有没有它，一眼差一档）
+  for (const sgn of [-1, 1]) {
+    g.fillStyle = base;
+    g.beginPath();
+    g.moveTo(X(sgn * 0.34), Y(-0.30));
+    g.lineTo(X(sgn * 0.86), Y(-0.10));
+    g.lineTo(X(sgn * 0.78), Y(0.22));
+    g.lineTo(X(sgn * 0.32), Y(0.06));
+    g.closePath(); g.fill();
+    g.fillStyle = plate;
+    g.beginPath();
+    g.moveTo(X(sgn * 0.34), Y(-0.30));
+    g.lineTo(X(sgn * 0.86), Y(-0.10));
+    g.lineTo(X(sgn * 0.80), Y(0.02));
+    g.lineTo(X(sgn * 0.34), Y(-0.16));
+    g.closePath(); g.fill();
+  }
+
+  // 5) 双臂：从肩朝前伸、双手在身前合拢握枪。手指位置与 render 里画的枪同一条轴线
+  for (const [sgn, st] of [[-1, stepL], [1, stepR]]) {
+    g.strokeStyle = gearHi; g.lineCap = 'round';
+    g.lineWidth = R * 0.32;                          // 大臂
+    g.beginPath();
+    g.moveTo(X(sgn * 0.56), Y(0.02 - st * 0.05));
+    g.lineTo(X(sgn * 0.38), Y(-0.40));
+    g.stroke();
+    g.lineWidth = R * 0.26;                          // 小臂：收拢到枪身两侧
+    g.beginPath();
+    g.moveTo(X(sgn * 0.38), Y(-0.40));
+    g.lineTo(X(sgn * 0.20), Y(-0.70));
+    g.stroke();
+    g.fillStyle = gear;                              // 手套：比手臂暗一档，端点才读得出来
+    g.beginPath(); g.arc(X(sgn * 0.20), Y(-0.70), R * 0.15, 0, 7); g.fill();
+  }
+
+  // 6) 头：俯视角只看到盔顶（没有脸）。外面一圈更暗的盔檐，把头与躯干分开 ——
+  //    旧版头几乎压在躯干上、又是同明度，两个球糊成一坨。
+  const hy = Y(-0.60 - bob * 0.02);
+  g.fillStyle = base;
+  g.beginPath(); g.arc(cx, hy, R * 0.46, 0, 7); g.fill();
+  g.fillStyle = shade(col, 0.18);
+  g.beginPath(); g.arc(cx, hy, R * 0.37, 0, 7); g.fill();
+  g.fillStyle = hi;
+  g.beginPath(); g.arc(cx - R * 0.05, hy - R * 0.05, R * 0.26, 0, 7); g.fill();
+  g.fillStyle = 'rgba(150,215,255,0.80)';            // 全身唯一的冷色强调：朝前的护目镜反光
+  g.beginPath(); g.ellipse(cx, hy - R * 0.40, R * 0.19, R * 0.05, 0, 0, 7); g.fill();
+  // 暖色记号：左肩一块小臂章。**不要**在头前画弧线 —— 试过，读起来像一张嘴，很显眼地难看。
+  g.fillStyle = '#c8613a';
+  rr(g, X(-0.80), Y(-0.06), R * 0.26, R * 0.16, R * 0.05);
+  g.fill();
 }
 
 function buildSprites() {

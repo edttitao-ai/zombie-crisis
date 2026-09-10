@@ -5,7 +5,7 @@ let state = 'start';          // start | playing | gameover
 let paused = false;
 let player, bullets, zombies, parts, pickups, corpses, casings, pops, nades, mols, fireZones, flashes, acidBolts, rings, teslaChains, beams, rollers, shells;
 let upg, upgTaken, regenT = 0, cardOpen = false, cardPicks = [];
-let combo = 0, comboT = 0, hitStopT = 0;   // 连杀计数 / 连杀窗口 / 击杀顿帧
+let combo = 0, comboT = 0, hitStopT = 0, hitStopLast = -9;   // 连杀计数 / 连杀窗口 / 击杀顿帧 / 上次顿帧的时刻（限流用）
 let burnCd = 0;                            // 点燃节流：火焰喷射器的灼烧不能无限叠加
 let vipMode = false;
 let lastMode = STORE.get('zc_lastmode') === 'vip';
@@ -28,7 +28,7 @@ function reset() {
   corpses = []; casings = []; pops = []; nades = []; mols = []; fireZones = []; flashes = [];
   acidBolts = []; rings = []; teslaChains = []; beams = []; rollers = []; shells = [];
   pet = null; petArcs.length = 0;
-  combo = 0; comboT = 0; hitStopT = 0; burnCd = 0;
+  combo = 0; comboT = 0; hitStopT = 0; hitStopLast = -9; burnCd = 0;
   resetUpgrades();
   upg.speed += 0.1;      // 开局自带移速 +10%（原 VIP 特权，现已对普通用户开放）
   upg.dmg += 0.15;       // 开局自带伤害 +15%（同上）

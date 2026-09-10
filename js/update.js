@@ -144,8 +144,18 @@ function update(dt) {
         z.hp -= dIn; z.flash = 0.07;
         if (b.burn && burnCd <= 0) { spawnBurn(b.x, b.y); burnCd = 0.12; }   // 限流：否则 1.2s 内叠三十片，灼烧叠加到 200+dps
         z.x += b.vx * 0.004 * b.knock; z.y += b.vy * 0.004 * b.knock;
-        blood(b.x, b.y, Math.atan2(b.vy, b.vx), 5, b.crit ? '#ff3b2f' : undefined);
-        sparks(b.x, b.y, Math.atan2(b.vy, b.vx), b.crit ? 9 : 5, b.crit);
+        const bang = Math.atan2(b.vy, b.vx);
+        // 命中分级（按单发伤害）：轻/中/重三档。
+        // **顿帧只给重击，而且限流** —— 连发武器每发都顿会把全局 dt 一直压在 0.28 倍，
+        // 变成永久慢动作（旧版只给大体型顿帧就是这个道理）。轻/中档只加特效与震感。
+        const tier = dIn >= 70 ? 2 : (dIn >= 24 ? 1 : 0);
+        if (tier === 2 && gameT - hitStopLast > 0.12) { hitStopT = Math.max(hitStopT, 0.05); hitStopLast = gameT; }
+        blood(b.x, b.y, bang, 4 + tier * 2, b.crit ? '#ff3b2f' : undefined);
+        sparks(b.x, b.y, bang, (b.crit ? 9 : 5) + tier * 3, b.crit || tier === 2);
+        if (tier === 2) {
+          rings.push({ x: b.x, y: b.y, t: 0, life: 0.2, col: 'rgba(255,240,200,0.55)' });
+          shake = Math.max(shake, 3);
+        }
         hitMarkT = 0.13;
         if (Math.random() < 0.22) {
           addStain(b.x + rand(-4, 4), b.y + rand(-4, 4), rand(2, 4.5));

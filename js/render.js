@@ -226,6 +226,10 @@ function render() {
     ctx.save();
     ctx.translate(z.x, z.y);
     ctx.rotate(a + Math.PI / 2 + sway + Math.sin(ph) * 0.05);
+    // 受击挤压回弹：沿受击方向压扁、垂向鼓出，再弹回。局部空间里 -Y 就是"朝向"，
+    // 而伤害几乎都来自玩家方向，所以压 Y 轴 = "被这一下打扁"，是 2D 打击感最便宜的一招。
+    const hk = z.flash > 0 ? Math.min(1, z.flash / 0.12) : 0;
+    if (hk > 0.01) ctx.scale(1 + 0.20 * hk, 1 - 0.26 * hk);
     ctx.translate(0, Math.sin(ph) * 0.9);            // 拖步起伏
     ctx.drawImage(spr.frames[(anim % WALK_FRAMES) | 0], -spr.half, -spr.half, spr.half * 2, spr.half * 2);
     // 局部空间动态部件
@@ -321,16 +325,23 @@ function render() {
   ctx.drawImage(SPR.shadow, p.x - p.r * 1.75, p.y - p.r * 1.05 + p.r * 0.55, p.r * 3.5, p.r * 2.2);
   ctx.globalAlpha = 1;
   // 枪（沿朝向 +X，带后坐；画在躯体之前，让躯干与持枪双臂压住枪身）
+  // 剪影分四段：枪托 / 机匣 / 弹匣 / 枪管 —— 旧版就是一根矩形加一个小凸起，
+  // 28px 下读不出"这是把枪"，整个人也就读不出"武装幸存者"。
+  const rc = p.recoil;
   ctx.save();
   ctx.translate(p.x, p.y); ctx.rotate(p.ang);
-  ctx.fillStyle = '#1d2023';
-  ctx.fillRect(p.r - 4 - p.recoil, -3, 30, 6);
-  ctx.fillStyle = '#34383d';
-  ctx.fillRect(p.r + 8 - p.recoil, -2, 12, 2.6);
-  ctx.fillStyle = '#2a2e33';
-  ctx.fillRect(p.r - 2 - p.recoil, -6, 7, 5);
-  ctx.fillStyle = '#20241f';
-  ctx.fillRect(p.r + 2 - p.recoil, 2, 5, 6);
+  ctx.fillStyle = '#20241f';                 // 枪托
+  ctx.fillRect(-2 - rc, -2.4, 9, 5);
+  ctx.fillStyle = '#2b3034';                 // 机匣
+  ctx.fillRect(6 - rc, -3, 17, 6);
+  ctx.fillStyle = '#4a5157';                 // 顶部导轨：全身唯一亮面，给枪一条"脊"
+  ctx.fillRect(7 - rc, -3, 15, 1.6);
+  ctx.fillStyle = '#1b1f22';                 // 弹匣：向侧下伸出一块，俯视角才认得出是枪
+  ctx.fillRect(12 - rc, 1.6, 6, 7);
+  ctx.fillStyle = '#33383d';                 // 枪管
+  ctx.fillRect(22 - rc, -1.6, 13, 3.2);
+  ctx.fillStyle = '#20241f';                 // 枪口制退器
+  ctx.fillRect(34 - rc, -2.6, 4.5, 5.2);
   ctx.restore();
   // 躯体：预渲染精灵（装甲 + 肩甲 + 背包 + 持枪双臂 + 面罩头盔），带行走循环与暖色边缘光。
   // 与僵尸走同一条绘制/后处理管线，所以主角和尸群在光照上是一套的。
@@ -339,6 +350,9 @@ function render() {
   ctx.save();
   ctx.translate(p.x, p.y);
   ctx.rotate(p.ang + Math.PI / 2);
+  // 受击挤压缩放：与僵尸同一套反馈语言（玩家受伤时 hurtT=0.55，取前段做衰减）
+  const pk = hurtT > 0 ? Math.min(1, hurtT / 0.4) : 0;
+  if (pk > 0.01) ctx.scale(1 + 0.12 * pk, 1 - 0.16 * pk);
   ctx.drawImage(hfr, -hsp.half, -hsp.half, hsp.half * 2, hsp.half * 2);
   ctx.restore();
   // 加持状态光环（速射 / VIP）——原来描在圆形躯体上，现在躯体是精灵，改成外圈光环
