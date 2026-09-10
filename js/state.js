@@ -129,18 +129,13 @@ function startWave(n) {
 
 // Boss 登场演出：全屏震动 + 一圈冲击环 + 广播
 function spawnBoss(type) {
-  const m = 70;
-  const side = Math.floor(Math.random() * 4);
-  let x, y;
-  if (side === 0)      { x = Math.random() * W; y = -m; }
-  else if (side === 1) { x = W + m; y = Math.random() * H; }
-  else if (side === 2) { x = Math.random() * W; y = H + m; }
-  else                 { x = -m; y = Math.random() * H; }
-  spawnAt(type, x, y);
+  // 出场点同样走「均匀随机角度 + 随机距离」，理由见 entities.js 的 spawnPointAt
+  const p = spawnPointAt(Math.random() * TAU);
+  spawnAt(type, p.x, p.y);
   const bz = zombies[zombies.length - 1];
   bz.slamCd = 1.2; bz.sumCd = 5;   // 登场后先给玩家一点反应时间
   shake = Math.max(shake, 16);
-  rings.push({ x: clamp(x, 40, W - 40), y: clamp(y, 40, H - 40), t: 0, life: 1.0, col: 'rgba(255,120,90,0.85)' });
+  rings.push({ x: clamp(p.x, 40, W - 40), y: clamp(p.y, 40, H - 40), t: 0, life: 1.0, col: 'rgba(255,120,90,0.85)' });
   waveMsg = t('bossWarn') + ' · ' + t(ZDEF[type].nameKey); waveMsgT = 2.6;
   S.scream();
 }

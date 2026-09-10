@@ -6,6 +6,16 @@ const CAP = { zombies: 130, parts: 420, stains: 200, corpses: 40, casings: 80, p
 const MEDKIT_CAP = 5;   // 医疗包库存上限（与投掷物上限 upg.throwCap 相互独立）
 const PICK_R = 16;      // 拾取判据 = player.r + PICK_R
 const DROP_DIST = 34;   // 按 X 丢枪时的落点距离
+/* ===== 刷怪随机性（调"僵尸从哪来、多久来一只"改这里）=====
+   落点 = 从玩家出发按均匀随机角度走到屏幕外，再多走 SPAWN_MARGIN_MIN~+VAR 的距离。
+   距离也随机，是为了别让所有僵尸都挤在同一条细环上出现。
+   出怪节奏：间隔乘 rand(0.55, 1.5) 抖动，并且偶尔一涌而上（BURST_P 概率多来 1~2 只）。
+   额外只数会让出怪总量变多，所以触发间隔按 1 + 期望额外只数 拉长（BURST_COMP），
+   保证"平均每秒来几只"不变 —— 只改变节奏的随机性，不偷偷提高难度。 */
+const SPAWN_MARGIN_MIN = 40;    // 最少离屏幕边框多远（旧版固定就是 40，公平性不退化）
+const SPAWN_MARGIN_VAR = 120;   // 再额外随机 0~120px
+const SPAWN_BURST_P = 0.22;     // 每次出怪后有 22% 概率补一小股
+const SPAWN_BURST_COMP = 1.31;  // 1 + 0.22 × (1 + 0.4) ≈ 1.31，抵消额外只数
 // 按 X 主动丢下的枪，必须先离开这个半径才能再捡：落点(34px)与拾取半径(31px)只差 3px，
 // 而一帧位移就有 3.8px，没有这道闸门的话往前后退一步就把它捡回来了。
 const DROP_ARM_R = 78;

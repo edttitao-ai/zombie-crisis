@@ -613,9 +613,15 @@ function update(dt) {
   if (toSpawn > 0) {
     spawnCd -= dt;
     if (spawnCd <= 0) {
-      spawnZombie();
+      const a = Math.random() * TAU;      // 本股的方向；补的那几只也走这个方向
+      spawnZombie(a);
       toSpawn--;
-      spawnCd = Math.max(0.25, 0.9 - wave * 0.04);
+      // 偶尔一涌而上：匀速滴灌本身也很有规律，玩家能数出拍子
+      const burst = (toSpawn > 0 && Math.random() < SPAWN_BURST_P)
+        ? 1 + (Math.random() < 0.4 ? 1 : 0) : 0;
+      for (let k = 0; k < burst && toSpawn > 0; k++) { spawnZombie(a); toSpawn--; }
+      // 间隔抖动 + 按额外只数拉长触发间隔：只改节奏的随机性，平均出怪速度不变
+      spawnCd = Math.max(0.30, (0.9 - wave * 0.04) * SPAWN_BURST_COMP) * rand(0.55, 1.5);
     }
   } else if (waveActive && zombies.length === 0) {
     waveActive = false;
