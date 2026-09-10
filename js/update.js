@@ -277,28 +277,36 @@ function update(dt) {
         if (z.fuseT <= 0) { killZombie(zi); continue; }
       }
     }
-    // 跃行者：蓄力（地上画出落点圈）→ 一扑一大段 → 落地僵直
-    // 位移只发生在"扑"的那一瞬，所以先抵消上面的默认追击位移（同冲撞者的写法）
+    // 跃行者：主动走近 → 进射程后蓄力（地上画出落点圈）→ 一扑一大段 → 落地僵直
+    // 位移抵消只发生在「蓄力」与「扑击」两段：
+    //   蓄力必须站定（否则地面预警圈指的落点和实际位移对不上）；
+    //   扑击用固定速度（不抵消的话，扑击距离会被叠加的追击速度污染）。
+    // **待机时必须照常追击** —— 早先这里无条件抵消位移，导致它平时站着不动、
+    // 只能等玩家走进 460px 才出手（用户报的"老是要靠近才出来"就是这个 bug）。
     if (z.type === 'leaper') {
       const dl = Math.hypot(p.x - z.x, p.y - z.y);
-      z.x -= Math.cos(a) * sp * dt;
-      z.y -= Math.sin(a) * sp * dt;
       if (z.crouchT > 0) {
         z.crouchT -= dt;
         z.leapA = a;                       // 蓄力期间持续瞄准：地面预警圈才指得准
+        z.x -= Math.cos(a) * sp * dt;      // 站定蓄力
+        z.y -= Math.sin(a) * sp * dt;
         if (z.crouchT <= 0) { z.leapT = LEAP_TIME; S.buzz(); }
       } else if (z.leapT > 0) {
         z.leapT -= dt;
+        z.x -= Math.cos(a) * sp * dt;      // 抵消默认追击：扑击距离 = LEAP_SPEED × LEAP_TIME
+        z.y -= Math.sin(a) * sp * dt;
         z.x = clamp(z.x + Math.cos(z.leapA || 0) * LEAP_SPEED * dt, z.r, W - z.r);
         z.y = clamp(z.y + Math.sin(z.leapA || 0) * LEAP_SPEED * dt, z.r, H - z.r);
-        // 扑击命中：比普通接触伤害重一点，但没有预警就不该有这一下
+        // 扑击命中：比普通接触伤害重一点，但这一下有预警圈，不算偷袭
         if (dl < z.r + p.r + 6 && z.atkCd <= 0) { z.atkCd = 1.1; damagePlayer(z.dmg * 1.3); }
         if (z.leapT <= 0) z.landT = 0.5;
       } else if (z.landT > 0) {
-        z.landT -= dt;                     // 落地僵直：这是玩家的输出窗口
+        z.landT -= dt;                     // 落地僵直：几乎不动（同冲撞者硬直的写法），这是输出窗口
+        z.x -= Math.cos(a) * sp * dt * 0.85;
+        z.y -= Math.sin(a) * sp * dt * 0.85;
       } else {
         z.hopCd = (z.hopCd === undefined ? rand(1.2, 2.6) : z.hopCd) - dt;
-        if (z.hopCd <= 0 && dl < 430) { z.crouchT = 0.5; z.hopCd = rand(2.2, 3.6); }
+        if (z.hopCd <= 0 && dl < LEAP_RANGE) { z.crouchT = 0.5; z.hopCd = rand(2.2, 3.6); }
       }
     }
     // 孢囊：周期性治疗周围尸群（自己也回一点）—— 不先处理它，整波都会变厚
