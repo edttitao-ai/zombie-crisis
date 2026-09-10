@@ -345,8 +345,8 @@ const PETS = [
     base: { dmg: 26, cd: 1.25, r: 11, range: 340, hops: 3, hopDist: 190, keep: 46 },
     icon: '<svg viewBox="0 0 24 24"><path d="M13 2 5 13h5.5L9 22l8-11h-5.5z" fill="currentColor"/></svg>' },
   { id: 'blade', vip: true, col: '#ffd24a', nameKey: 'petBlade', descKey: 'petBladeD',
-    // VIP：环绕刀轮，扫过即伤（每进化 +1 片刀）
-    base: { dmg: 20, cd: 0.32, r: 10, orbitR: 64, spin: 3.1, blades: 1, keep: 0 },
+    // VIP：环绕刀轮 —— 僵尸进射程就脱手飞出去追踪它，命中后回位（每进化 +1 片刀）
+    base: { dmg: 30, cd: 0.85, r: 11, range: 430, speed: 640, orbitR: 46, spin: 3.1, blades: 1, keep: 0 },
     icon: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2.6l2.4 4.2-2.4 2.4-2.4-2.4zM21.4 12l-4.2 2.4-2.4-2.4 2.4-2.4zM12 21.4l-2.4-4.2 2.4-2.4 2.4 2.4zM2.6 12l4.2-2.4 2.4 2.4-2.4 2.4z" fill="currentColor"/></svg>' }
 ];
 function petDef(id) { for (const p of PETS) if (p.id === id) return p; return PETS[0]; }

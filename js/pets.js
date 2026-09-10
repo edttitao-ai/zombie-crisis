@@ -6,7 +6,7 @@
 //   drone  远程点射   —— 跟在身边悬浮，朝最近目标点射（进化后多一发）
 //   aura   治疗光环   —— 不主动攻击：持续治疗玩家 + 拖慢范围内的僵尸
 //   bolt   连锁闪电   —— VIP：一次电到一串（进化 +2 跳）
-//   blade  环绕刀轮   —— VIP：绕着你转的刀（进化 +1 片）
+//   blade  追击刀轮   —— VIP：僵尸进射程就脱手飞出去追踪（进化 +1 片）
 // 成长全部由「等级」推导，不另存数值，避免升级后状态漂移。
 /* ================= 宠物 ================= */
 function petCap() { return vipMode ? PET_LV_VIP : PET_LV_NORMAL; }
@@ -219,36 +219,95 @@ function petBolt(d, st, dt) {
   S.zap();
 }
 
-// ---- 环绕刀轮 ----
+// ---- 追击刀轮 ----
+// 旧版只是「绕着你转、要贴脸才刮得到」，轨道半径 64px，僵尸走到脸上才有输出 ——
+// 等于一个没有主动攻击的自保光环。现在改成脱手飞刃：
+//   轨道待机 → 僵尸进 range 就锁定「最近的那只」飞出去（有限转向速度，看得出在追）→
+//   命中结算伤害并立刻回收 → 飞回自己的轨道槽位等下一轮。
+// 每片刀有独立的冷却与飞行状态，所以「进化 +1 片刀」= 同时能飞出去更多把。
 function petBlade(d, st, dt) {
   const p = player;
   const R = d.base.orbitR + (pet.lv - 1) * 1.3 + pet.evo * 5;
   const n = d.base.blades + st.evo;        // 每进化 +1 片刀
-  for (let i = 0; i < n; i++) {
-    const a = pet.spin + i / n * Math.PI * 2;
-    const bx = p.x + Math.cos(a) * R, by = p.y + Math.sin(a) * R;
-    if (i === 0) { pet.x = bx; pet.y = by; pet.ang = a; }
-    // 扫掠痕：刀后拖一小串残影，让"扫过"这件事看得见
-    if (parts.length < CAP.parts - 4) {
-      parts.push({ x: bx, y: by, vx: -Math.cos(a) * 40, vy: -Math.sin(a) * 40,
-                   life: 0.16, maxLife: 0.16, size: st.rad * 0.38, col: hexA(d.col, 0.5) });
-    }
-    for (let j = zombies.length - 1; j >= 0; j--) {
-      const z = zombies[j];
-      if (!z) continue;                    // killZombie 可能缩短数组（见主循环同名防御）
-      if ((z.x - bx) ** 2 + (z.y - by) ** 2 > (st.rad + z.r) ** 2) continue;
-      if (gameT - (z.bladeT === undefined ? -9 : z.bladeT) < 0.35) continue;
-      z.bladeT = gameT;
-      let dIn = st.dmg;
-      if (z.type === 'shielder') dIn *= 0.6;
-      z.hp -= dIn; z.flash = 0.12;
-      blood(z.x, z.y, a, 5, '#ffd98a');
-      sparks(z.x, z.y, a, 7, true);        // 命中火花：原来只有血，太容易被忽略
-      pet.flash = 0.12;
-      S.hit();
-      if (z.hp <= 0) killZombie(j);
+  if (!pet.blades || pet.blades.length !== n) {
+    pet.blades = [];
+    for (let i = 0; i < n; i++) {
+      // 出生点先摆在各自槽位上，避免开局第一帧从玩家身上飞出来
+      const a = pet.spin + i / n * Math.PI * 2;
+      pet.blades.push({ mode: 'orbit', x: p.x + Math.cos(a) * R, y: p.y + Math.sin(a) * R,
+                        ang: a, cd: rand(0, 0.35), life: 0, target: null });
     }
   }
+  for (let i = 0; i < n; i++) {
+    const b = pet.blades[i];
+    const slot = pet.spin + i / n * Math.PI * 2;
+    const hx = p.x + Math.cos(slot) * R, hy = p.y + Math.sin(slot) * R;
+    b.cd = Math.max(0, b.cd - dt);
+
+    if (b.mode === 'orbit') {
+      // 回位用插值而不是瞬移：接刀那一下看起来才不像穿帮
+      const k = Math.min(1, dt * 14);
+      b.x += (hx - b.x) * k; b.y += (hy - b.y) * k;
+      b.ang = slot + Math.PI * 0.5;
+      // 出手只由冷却决定。**不要**再要求「先回到槽位」—— 槽位随 spin 一直转
+      // （约 143px/s），插值永远落后 ~16px，那种门闸会变成"一辈子只出一次手"。
+      if (b.cd <= 0) {
+        const z = petNearest(d.base.range);
+        if (z) {                              // 没有目标就一直挂在轨道上
+          b.mode = 'out'; b.target = z; b.life = 0;
+          b.ang = Math.atan2(z.y - b.y, z.x - b.x);
+          b.cd = st.cd;
+          pet.flash = 0.12;                   // 起手白光：出手必须看得见
+          S.dash();
+        }
+      }
+    } else if (b.mode === 'out') {
+      b.life += dt;
+      // 目标死了/丢了就改追「离刀最近的那只」，所以这是一路追踪而不是锁定直线
+      let z = b.target;
+      if (!z || z.hp <= 0 || zombies.indexOf(z) < 0) z = petNearest(d.base.range, b.x, b.y);
+      b.target = z;
+      const want = z ? Math.atan2(z.y - b.y, z.x - b.x) : Math.atan2(p.y - b.y, p.x - b.x);
+      let da = ((want - b.ang + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      b.ang += clamp(da, -7 * dt, 7 * dt);     // 限转向速度：转弯看得见，不是瞬间锁死
+      b.x += Math.cos(b.ang) * d.base.speed * dt;
+      b.y += Math.sin(b.ang) * d.base.speed * dt;
+      // 飞行拖尾：让「它真的飞出去了」一眼可见
+      if (parts.length < CAP.parts - 3) {
+        parts.push({ x: b.x, y: b.y, vx: -Math.cos(b.ang) * 60, vy: -Math.sin(b.ang) * 60,
+                     life: 0.2, maxLife: 0.2, size: st.rad * 0.42, col: hexA(d.col, 0.55) });
+      }
+      // 命中即回收：一刀只结算一次，不做穿透（否则一把刀能刮穿一整排）
+      for (let j = zombies.length - 1; j >= 0; j--) {
+        const z = zombies[j];
+        if (!z) continue;                      // killZombie 可能缩短数组（同主循环的防御）
+        if ((z.x - b.x) ** 2 + (z.y - b.y) ** 2 > (st.rad + z.r) ** 2) continue;
+        let dIn = st.dmg;
+        if (z.type === 'shielder') dIn *= 0.6;
+        z.hp -= dIn; z.flash = 0.12;
+        blood(z.x, z.y, b.ang, 5, '#ffd98a');
+        sparks(z.x, z.y, b.ang, 8, true);
+        pet.flash = 0.12;
+        S.hit();
+        if (z.hp <= 0) killZombie(j);
+        b.mode = 'back';
+        break;
+      }
+      // 追太久或飞太远也要回来，否则刀会一直挂在天上
+      if (b.mode === 'out' &&
+          (b.life > 1.6 || Math.hypot(b.x - p.x, b.y - p.y) > d.base.range * 1.15)) b.mode = 'back';
+    } else {                                   // back：直线飞回玩家，进轨道圈就算归位
+      b.ang = Math.atan2(p.y - b.y, p.x - b.x);
+      const sp = d.base.speed * 1.25;
+      b.x += Math.cos(b.ang) * sp * dt;
+      b.y += Math.sin(b.ang) * sp * dt;
+      if (Math.hypot(b.x - p.x, b.y - p.y) <= R) b.mode = 'orbit';
+    }
+  }
+  // 宠物本体（Lv 标签 / HUD 定位用）停在轨道上，不跟着飞出去的那把刀跑
+  pet.x = p.x + Math.cos(pet.spin) * R;
+  pet.y = p.y + Math.sin(pet.spin) * R;
+  pet.ang = pet.spin + Math.PI * 0.5;
 }
 
 /* ================= 绘制 ================= */
@@ -277,17 +336,16 @@ function drawPet(now) {
     ctx.globalAlpha = 1;
   }
 
-  // 环绕刀轮：每片刀单独画在轨道上
+  // 追击刀轮：轨道环 + 每片刀画在它自己的实时位置上（飞出去的那几把就不在轨道上）
   if (d.id === 'blade') {
     const R = d.base.orbitR + (pet.lv - 1) * 1.3 + pet.evo * 5;
-    const n = d.base.blades + st.evo;
-    ctx.globalAlpha = 0.22;
+    ctx.globalAlpha = 0.16;
     ctx.strokeStyle = d.col; ctx.lineWidth = 1.2;
     ctx.beginPath(); ctx.arc(p.x, p.y, R, 0, 7); ctx.stroke();
     ctx.globalAlpha = 1;
-    for (let i = 0; i < n; i++) {
-      const a = pet.spin + i / n * Math.PI * 2;
-      drawBlade(p.x + Math.cos(a) * R, p.y + Math.sin(a) * R, st.rad, pet.spin * 2.4, d.col, st.evo);
+    for (const b of (pet.blades || [])) {
+      drawBlade(b.x, b.y, st.rad, b.mode === 'orbit' ? b.ang : b.ang + pet.spin * 1.4,
+                d.col, st.evo);
     }
     drawPetLabel(st);
     return;

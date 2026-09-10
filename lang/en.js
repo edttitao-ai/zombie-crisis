@@ -129,5 +129,5 @@ window.I18N.en = {
   petBolt: 'Storm Wisp',
   petBoltD: 'Chain lightning that arcs through a line of enemies (VIP only)',
   petBlade: 'Blade Ring',
-  petBladeD: 'Blades orbiting you, damaging everything they sweep (VIP only)'
+  petBladeD: 'Blades orbit you, then fly out to hunt the nearest zombie (VIP only)'
 };

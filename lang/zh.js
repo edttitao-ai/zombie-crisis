@@ -129,5 +129,5 @@ window.I18N.zh = {
   petBolt: '雷灵',
   petBoltD: '连锁闪电，一次电到一串（VIP 专属）',
   petBlade: '环刃卫',
-  petBladeD: '绕着你旋转的刀轮，扫过即伤（VIP 专属）'
+  petBladeD: '环着你转的刀轮：僵尸进射程就脱手飞出去追踪它（VIP 专属）'
 };
