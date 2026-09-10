@@ -18,26 +18,26 @@
   <p class="desc" data-i18n="desc">夜晚降临，僵尸潮从四面八方涌来。守住每一波，活得越久，得分越高。</p>
   <div class="keys" data-i18n-html="keysHtml">
     <b>W A S D</b> 移动 &nbsp; <b>鼠标</b> 瞄准 &nbsp; <b>左键</b> 射击<br>
-    <b>R</b> 装填 &nbsp; <b>G / 右键</b> 手雷 &nbsp; <b>F</b> 燃烧瓶 &nbsp; <b>Q</b> 医疗包<br>
+    <b>R</b> 装填 &nbsp; <b>G / 右键</b> 手雷 &nbsp; <b>F</b> 燃烧瓶 &nbsp; <b>Q</b> 医疗包 &nbsp; <b>X</b> 丢枪<br>
     <b>Shift</b> 冲刺 &nbsp; <b>P</b> 暂停 &nbsp; <b>M</b> 静音 &nbsp; <b>L</b> 语言
   </div>
   <div class="mode-row">
     <div class="mode-card" id="modeNormal">
       <div class="m-tag" data-i18n="modeNormalTag">免费</div>
       <div class="m-name" data-i18n="modeNormal">普通用户</div>
-      <div class="m-desc" data-i18n-html="modeNormalDesc">标准开局：手枪 30 发<br>完整挑战体验<br>每波强化三选一</div>
+      <div class="m-desc" data-i18n-html="modeNormalDesc">开局特斯拉电枪 · 无限子弹<br>伤害+15% · 移速+10% · 得分 ×2<br>手雷×5 · 燃烧瓶×3 · 医疗包×3<br>复活甲 ×2 · 紧急力场 · 每波回血 35<br>每 20 秒空投 · 冲刺冷却 -30%<br>强化卡四选一 · 特斯拉放电 +30%</div>
     </div>
     <div class="mode-card vip" id="modeVIP">
       <div class="m-tag" data-i18n="modeVIPTag">专属特权</div>
       <div class="m-name" data-i18n="modeVIP">VIP 用户</div>
-      <div class="m-desc" data-i18n-html="modeVIPDesc">开局特斯拉电枪 · 无限子弹<br>手雷×5 · 燃烧瓶×3 · 医疗包×3<br>得分 ×2 · 复活甲 ×2 · 紧急力场<br>每 20 秒 VIP 空投 · 每波回血 35<br>冲刺冷却 -30% · 强化卡四选一<br>专属闪电强化 · 放电 +30%</div>
+      <div class="m-desc" data-i18n-html="modeVIPDesc">默认武器：无限弹匣加特林<br>弹匣无限 · 永不换弹 · 备弹无限<br>加特林专属强化：伤害 +50%<br>并完整继承普通用户的全部特权</div>
     </div>
   </div>
   <div class="start-hint" data-i18n="startHint"></div>
   <div class="tip" data-i18n-html="tip">
     补给会存入装备栏，不再即时消耗：Q 使用医疗包，G / 右键 投掷手雷，F 投掷燃烧瓶。<br>
-    每波肃清后从三张强化卡中选一张，效果持续到本局结束。<br>
-    武器箱：冲锋枪 · 霰弹枪 · 火箭筒 · 磁轨枪（穿透） · 加特林（极速）<br>
+    每波肃清后从四张强化卡中选一张，效果持续到本局结束。<br>
+    武器箱：冲锋枪 · 火焰喷射器 · 加特林 · 跳弹枪 · 特斯拉电枪 · 磁轨狙击枪 · 蜂群导弹 · 吞噬滚球<br>
     特殊僵尸：吐酸者（远程酸弹） · 自爆者（靠近会引爆） · 装甲者（子弹减伤，怕爆炸与火焰） · 尖啸者（狂化尸群，优先击杀）
   </div>
   <div class="best" id="bestStart"></div>
@@ -69,11 +69,21 @@
   <div class="tip" data-i18n="cardsHint"></div>
 </div>
 
+<script src="js/util.js"></script>
 <script src="lang/zh.js"></script>
 <script src="lang/en.js"></script>
 <script src="lang/i18n.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/data.js"></script>
-<script src="js/game.js"></script>
+<script src="js/base.js"></script>
+<script src="js/gfx.js"></script>
+<script src="js/state.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/input.js"></script>
+<script src="js/combat.js"></script>
+<script src="js/update.js"></script>
+<script src="js/render.js"></script>
+<script src="js/hud.js"></script>
+<script src="js/main.js"></script>
 </body>
 </html>

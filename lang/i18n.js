@@ -20,7 +20,7 @@
     return (fb && fb[key] !== undefined) ? fb[key] : key;
   }
 
-  // 模板填充：t('ammo') 返回 '弹药 {0} / {1}'，fmt 填入参数
+  // 模板填充：t('waveN') 返回 '第 {0} 波'，fmt 填入参数
   function fmt(str) {
     const args = Array.prototype.slice.call(arguments, 1);
     return String(str).replace(/\{(\d+)\}/g, (m, n) => (args[n] !== undefined ? args[n] : m));
