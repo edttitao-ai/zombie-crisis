@@ -16,6 +16,9 @@ const SPAWN_MARGIN_MIN = 40;    // 最少离屏幕边框多远（旧版固定就
 const SPAWN_MARGIN_VAR = 120;   // 再额外随机 0~120px
 const SPAWN_BURST_P = 0.22;     // 每次出怪后有 22% 概率补一小股
 const SPAWN_BURST_COMP = 1.31;  // 1 + 0.22 × (1 + 0.4) ≈ 1.31，抵消额外只数
+// 跃行者的扑击参数：速度 × 滞空时间 = 扑击距离，也是地面预警圈的画法（两处必须同源）
+const LEAP_SPEED = 660;
+const LEAP_TIME = 0.32;
 // 按 X 主动丢下的枪，必须先离开这个半径才能再捡：落点(34px)与拾取半径(31px)只差 3px，
 // 而一帧位移就有 3.8px，没有这道闸门的话往前后退一步就把它捡回来了。
 const DROP_ARM_R = 78;
@@ -157,6 +160,18 @@ const ZDEF = {
   screamer: { r: 12, hp: 24,  spd: 70,  spdW: 3,   spdCap: 120, dmg: 6,  col: '#c26aa6', sc: 25, minWave: 5 },
   brute:    { r: 24, hp: 120, spd: 42,  spdW: 1.5, spdCap: 70,  dmg: 22, col: '#457a35', sc: 30, minWave: 4 },
 
+  // ===== 第二轮扩充的杂兵：每个都带一种「逼迫玩家改变打法」的机制，而不是只换数值 =====
+  // 裂殖体：死亡时分裂成两只残体 —— 击杀它反而让场上变多，是该先放着还是该用范围武器清
+  splitter: { r: 17, hp: 70,  spd: 46, spdW: 2,   spdCap: 86,  dmg: 12, col: '#8a6fd0', sc: 26, minWave: 6 },
+  // 跃行者：短距蓄力（地上画出落点圈）后扑一大段，落地僵直 —— 逼你走出预警圈再回来输出
+  leaper:   { r: 15, hp: 48,  spd: 54, spdW: 2.5, spdCap: 90,  dmg: 14, col: '#d08a2a', sc: 24, minWave: 5 },
+  // 复生者：第一次倒下只是假死（半血站起来）—— 必须杀两次，别以为清完了
+  revenant: { r: 16, hp: 64,  spd: 50, spdW: 2,   spdCap: 88,  dmg: 13, col: '#b07a68', sc: 28, minWave: 6 },
+  // 孢囊：周期性治疗周围尸群（自己回一点）—— 典型的「先杀奶妈」，拖着打整波都会变厚
+  spore:    { r: 18, hp: 90,  spd: 34, spdW: 1.2, spdCap: 62,  dmg: 8,  col: '#57b58c', sc: 30, minWave: 7 },
+  // 残体：**只由裂殖体死亡时分裂产生**，不进 SPAWN_TABLE（不写 minWave —— 抽不到它，写了是死数据）
+  half:     { r: 10, hp: 22,  spd: 96, spdW: 3,   spdCap: 150, dmg: 7,  col: '#a894d1', sc: 6 },
+
   // ===== Boss：每 5 波登场（由 startWave 显式投放，不进 SPAWN_TABLE，
   //       所以这里不写 minWave —— 写了也不会被读取，属于死数据）=====
   // 屠夫：巨型近战，走近后周期性震地（范围伤害），死亡时大爆炸 + 掉落雨
@@ -201,7 +216,13 @@ const SPAWN_TABLE = [
   ['shielder', 0.30],
   ['bloater',  0.42],
   ['spitter',  0.54],
-  ['runner',   0.76]
+  ['runner',   0.76],
+  // 下面四种放在 runner 之后：它们的概率质量是从「normal 的尾段」里出的，
+  // 所以在各自 minWave 之前的波次里，生成分布与扩充前**逐项一致**（不会偷偷改前期难度）。
+  ['leaper',   0.80],
+  ['revenant', 0.84],
+  ['splitter', 0.88],
+  ['spore',    0.92]
 ];
 function pickZombieType() {
   const r = Math.random();

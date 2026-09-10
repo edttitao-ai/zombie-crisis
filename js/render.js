@@ -285,6 +285,25 @@ function render() {
       ctx.beginPath(); ctx.arc(z.x, z.y, z.r + 9, 0, 7); ctx.stroke();
       ctx.globalAlpha = 1;
     }
+    // 跃行者蓄力：虚线指向 + 地面落点圈。和冲撞者同一个道理 —— 看不见的扑击是耍赖，不是难度。
+    // 落点距离用 LEAP_SPEED × LEAP_TIME 算，与 update 里的位移同源，改一处就够。
+    if (z.type === 'leaper' && z.crouchT > 0) {
+      const k = 1 - z.crouchT / 0.5;
+      const la = z.leapA || 0;
+      const lx = clamp(z.x + Math.cos(la) * LEAP_SPEED * LEAP_TIME, 22, W - 22);
+      const ly = clamp(z.y + Math.sin(la) * LEAP_SPEED * LEAP_TIME, 22, H - 22);
+      ctx.globalAlpha = 0.25 + 0.5 * k;
+      ctx.strokeStyle = '#ffc04a';
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash([7, 7]);
+      ctx.beginPath(); ctx.moveTo(z.x, z.y); ctx.lineTo(lx, ly); ctx.stroke();
+      ctx.setLineDash([]);                       // 必须复位，虚线不能漏给后面的绘制
+      ctx.lineWidth = 2.6;
+      ctx.beginPath(); ctx.arc(lx, ly, 36 * (0.55 + 0.45 * k), 0, 7); ctx.stroke();
+      ctx.globalAlpha = 0.20 + 0.30 * k;
+      ctx.beginPath(); ctx.arc(lx, ly, 36, 0, 7); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
     // 血条
     if (z.hp < z.maxHp) {
       const w = z.r * 2;

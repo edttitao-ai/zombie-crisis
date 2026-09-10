@@ -88,6 +88,7 @@ window.I18N.en = {
   zNecro: 'Necromancer',
   bossWarn: 'BOSS INCOMING',
   bossDown: 'BOSS DOWN',
+  zRevive: 'REVIVED!',
 
   card_dmg_n: 'Firepower',
   card_dmg_d: 'Weapon damage +15%',

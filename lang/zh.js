@@ -88,6 +88,7 @@ window.I18N.zh = {
   zNecro: '纳尸者',
   bossWarn: '首领来袭',
   bossDown: '首领已被击杀',
+  zRevive: '复生！',
 
   card_dmg_n: '火力强化',
   card_dmg_d: '武器伤害 +15%',

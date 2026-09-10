@@ -264,6 +264,50 @@ function update(dt) {
         if (z.fuseT <= 0) { killZombie(zi); continue; }
       }
     }
+    // 跃行者：蓄力（地上画出落点圈）→ 一扑一大段 → 落地僵直
+    // 位移只发生在"扑"的那一瞬，所以先抵消上面的默认追击位移（同冲撞者的写法）
+    if (z.type === 'leaper') {
+      const dl = Math.hypot(p.x - z.x, p.y - z.y);
+      z.x -= Math.cos(a) * sp * dt;
+      z.y -= Math.sin(a) * sp * dt;
+      if (z.crouchT > 0) {
+        z.crouchT -= dt;
+        z.leapA = a;                       // 蓄力期间持续瞄准：地面预警圈才指得准
+        if (z.crouchT <= 0) { z.leapT = LEAP_TIME; S.buzz(); }
+      } else if (z.leapT > 0) {
+        z.leapT -= dt;
+        z.x = clamp(z.x + Math.cos(z.leapA || 0) * LEAP_SPEED * dt, z.r, W - z.r);
+        z.y = clamp(z.y + Math.sin(z.leapA || 0) * LEAP_SPEED * dt, z.r, H - z.r);
+        // 扑击命中：比普通接触伤害重一点，但没有预警就不该有这一下
+        if (dl < z.r + p.r + 6 && z.atkCd <= 0) { z.atkCd = 1.1; damagePlayer(z.dmg * 1.3); }
+        if (z.leapT <= 0) z.landT = 0.5;
+      } else if (z.landT > 0) {
+        z.landT -= dt;                     // 落地僵直：这是玩家的输出窗口
+      } else {
+        z.hopCd = (z.hopCd === undefined ? rand(1.2, 2.6) : z.hopCd) - dt;
+        if (z.hopCd <= 0 && dl < 430) { z.crouchT = 0.5; z.hopCd = rand(2.2, 3.6); }
+      }
+    }
+    // 孢囊：周期性治疗周围尸群（自己也回一点）—— 不先处理它，整波都会变厚
+    if (z.type === 'spore') {
+      z.healCd = (z.healCd === undefined ? rand(1.6, 3.2) : z.healCd) - dt;
+      if (z.healCd <= 0) {
+        z.healCd = 3.6;
+        let healed = 0;
+        for (const o of zombies) {
+          if (o === z || o.hp >= o.maxHp) continue;
+          if (Math.hypot(o.x - z.x, o.y - z.y) > 230) continue;
+          o.hp = Math.min(o.maxHp, o.hp + o.maxHp * 0.16);
+          if (healed < 8) flashes.push({ x: o.x, y: o.y, r: o.r + 14, t: 0, life: 0.3 });
+          healed++;
+        }
+        z.hp = Math.min(z.maxHp, z.hp + z.maxHp * 0.06);
+        if (healed) {
+          rings.push({ x: z.x, y: z.y, t: 0, life: 0.7, col: 'rgba(110,230,170,0.85)' });
+          S.heal();
+        }
+      }
+    }
     const d = Math.hypot(p.x - z.x, p.y - z.y);
 
     // ===== Boss 行为 =====

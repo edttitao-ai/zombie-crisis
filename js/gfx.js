@@ -267,6 +267,11 @@ function drawZombiePose(g, type, R, ph, S2, det) {
   if (type === 'screamer') { torsoW = 0.60; headR = 0.48; headY = -0.58; aL = 0.62; aR = 0.62; lean = 0.06; }
   if (type === 'spitter')  { torsoW = 0.78; headR = 0.40; }
   if (type === 'shielder') { torsoW = 0.68; lean = -0.04; }
+  // 第二轮扩充的杂兵：体型也要能一眼区分，不能只靠颜色
+  if (type === 'splitter') { torsoW = 1.05; torsoH = 0.80; armLen = 0.70; armW = 0.34; headR = 0.30; headY = -0.42; aL = 0.36; aR = 0.44; lean = 0.02; }
+  if (type === 'leaper')   { torsoW = 0.80; torsoH = 0.58; armLen = 0.55; armW = 0.26; headR = 0.34; headY = -0.44; aL = 0.40; aR = 0.48; lean = -0.20; }
+  if (type === 'revenant') { torsoW = 0.64; torsoH = 0.86; armLen = 1.00; armW = 0.24; headR = 0.36; headY = -0.58; aL = 0.72; aR = 0.44; lean = 0.05; }
+  if (type === 'spore')    { torsoW = 1.00; torsoH = 0.86; armLen = 0.52; armW = 0.32; headR = 0.26; headY = -0.40; aL = 0.32; aR = 0.38; lean = 0.03; }
   // Boss：更宽更厚的躯干、更小的头，靠体型一眼分辨
   if (type === 'butcher')  { torsoW = 1.18; torsoH = 0.78; armLen = 1.05; armW = 0.55; headR = 0.30; headY = -0.44; aL = 0.46; aR = 0.56; fistR = 0.34; lean = -0.06; }
   if (type === 'brood')    { torsoW = 1.02; torsoH = 0.95; armLen = 0.70; armW = 0.38; headR = 0.44; headY = -0.50; aL = 0.48; aR = 0.56; lean = 0.04; }
@@ -384,6 +389,62 @@ function drawZombiePose(g, type, R, ph, S2, det) {
     g.beginPath(); g.arc(cx, Y(ty + 0.10), R * 0.55, Math.PI * 1.15, Math.PI * 1.85); g.stroke();
     g.strokeStyle = 'rgba(228,238,208,0.16)'; g.lineWidth = R * 0.035;
     g.beginPath(); g.arc(cx - R * 0.05, Y(ty + 0.06), R * 0.80, Math.PI * 1.20, Math.PI * 1.80); g.stroke();
+  } else if (type === 'splitter') {
+    // 中缝：一道纵向裂口 + 里面透出的亮色，暗示「它随时会裂成两半」
+    g.fillStyle = 'rgba(30,16,44,0.5)';
+    g.beginPath(); g.ellipse(cx, Y(ty + 0.04), R * 0.06, R * 0.40, 0, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(226,206,255,0.5)'; g.lineWidth = 1.1;
+    g.beginPath(); g.moveTo(cx, Y(ty - 0.30)); g.lineTo(cx, Y(ty + 0.34)); g.stroke();
+    // 脓疱的位置沿用 det（预生成），否则 4 帧之间会乱跳
+    for (const bp of det.pustules.slice(0, 4)) {
+      g.fillStyle = 'rgba(232,214,255,0.55)';
+      g.beginPath(); g.arc(cx + bp[0] * R * 0.52, Y(ty + bp[1] * 0.46), R * bp[2] * 0.9, 0, 7); g.fill();
+    }
+  } else if (type === 'leaper') {
+    // 折叠的后腿 + 前伸的爪：静态剪影就读得出「它能弹出去」
+    // 注意所有横坐标都要走 X()：直接写 sgn*R*… 会画到画布左边缘去（踩过）
+    g.strokeStyle = skinDk; g.lineWidth = R * 0.16; g.lineCap = 'round';
+    for (const sgn of [-1, 1]) {
+      g.beginPath();
+      g.moveTo(X(sgn * 0.26), Y(ty + 0.44));
+      g.lineTo(X(sgn * 0.56), Y(ty + 0.18));
+      g.lineTo(X(sgn * 0.30), Y(ty - 0.02));
+      g.stroke();
+    }
+    g.fillStyle = 'rgba(255,232,180,0.85)';
+    for (const sgn of [-1, 1]) {
+      for (let k = 0; k < 3; k++) {
+        const bx = X(sgn * (0.30 + k * 0.11)), by = Y(ty + 0.02 - k * 0.03);
+        g.beginPath(); g.moveTo(bx, by);
+        g.lineTo(bx + sgn * R * 0.10, by - R * 0.08);
+        g.lineTo(bx + sgn * R * 0.03, by + R * 0.03);
+        g.closePath(); g.fill();
+      }
+    }
+  } else if (type === 'revenant') {
+    // 半腐的胸腔：露出的肋骨 + 一处发亮的复生痕迹
+    g.fillStyle = 'rgba(58,30,22,0.85)';
+    g.beginPath(); g.ellipse(cx, Y(ty + 0.02), R * 0.30, R * 0.26, 0, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(226,208,186,0.75)'; g.lineWidth = 1.3;
+    for (let k = 0; k < 4; k++) {
+      g.beginPath();
+      g.moveTo(cx - R * 0.26, Y(ty - 0.08 + k * 0.10));
+      g.quadraticCurveTo(cx, Y(ty - 0.04 + k * 0.10), cx + R * 0.26, Y(ty - 0.08 + k * 0.10));
+      g.stroke();
+    }
+    g.fillStyle = 'rgba(255,170,110,0.55)';
+    g.beginPath(); g.arc(cx, Y(ty + 0.02), R * 0.13, 0, 7); g.fill();
+  } else if (type === 'spore') {
+    // 背上的孢子囊：一堆发光鼓包（它就是靠这个在治疗尸群）
+    for (const bp of det.pustules) {
+      const bx = cx + bp[0] * R * 0.60, by = Y(ty + bp[1] * 0.46), br = R * bp[2] * 1.25;
+      const sg = g.createRadialGradient(bx, by, 0, bx, by, br);
+      sg.addColorStop(0, 'rgba(210,255,225,0.9)');
+      sg.addColorStop(0.6, 'rgba(96,196,150,0.55)');
+      sg.addColorStop(1, 'rgba(60,150,110,0)');
+      g.fillStyle = sg;
+      g.beginPath(); g.arc(bx, by, br, 0, 7); g.fill();
+    }
   } else if (type === 'normal') {
     // 肩部撕裂伤
     g.fillStyle = 'rgba(78,13,13,0.85)';

@@ -60,6 +60,23 @@ function sparks(x, y, ang, n, bright) {
 function killZombie(i) {
   if (i < 0 || i >= zombies.length) return; // 防御：索引失效（爆炸/放电连锁击杀后索引可能偏移）
   const z = zombies[i];
+  // 复生者：第一次倒下只是假死 —— 半血重新站起来，必须杀两次。
+  // 这里直接 return：不 splice、不计分。sweepDead 靠 hp>0 自然跳过它，不会死循环。
+  if (z.type === 'revenant' && !z.revived) {
+    z.revived = true;
+    z.hp = Math.max(1, Math.round(z.maxHp * 0.5));
+    z.flash = 0.22;
+    rings.push({ x: z.x, y: z.y, t: 0, life: 0.6, col: 'rgba(232,158,108,0.9)' });
+    pops.push({ x: z.x, y: z.y - z.r - 6, txt: t('zRevive'), t: 0, life: 1.1 });
+    if (pops.length > CAP.pops) pops.shift();
+    for (let g = 0; g < 10; g++) {
+      const a = rand(0, 6.28), sp = rand(60, 220);
+      parts.push({ x: z.x, y: z.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+                   life: rand(0.25, 0.5), maxLife: 0.5, size: rand(2, 3.5), col: '#d8a878' });
+    }
+    S.scream();
+    return;
+  }
   // 连杀累积 + 重目标顿帧。顿帧只给大体型：每个杂兵都顿会把手感拖成卡顿。
   combo++; comboT = 2.5;
   if (z.type === 'brute') hitStopT = Math.max(hitStopT, 0.075);
@@ -78,6 +95,18 @@ function killZombie(i) {
     }
     S.die(1 + Math.min(combo, 14) * 0.045);   // 连杀越高，死亡音调越高
     return;
+  }
+  // 裂殖体：死亡时裂成两只残体 —— 击杀它反而让场上变多，这是它存在的全部意义。
+  // 用 spawnAt 走正常生成路径（血量/速度随波次成长），残体自己不会再分裂，不会无限递归。
+  if (z.type === 'splitter') {
+    rings.push({ x: z.x, y: z.y, t: 0, life: 0.5, col: 'rgba(172,130,232,0.85)' });
+    for (let k = 0; k < 2; k++) {
+      const sa = rand(0, 6.28);
+      spawnAt('half', z.x + Math.cos(sa) * 24, z.y + Math.sin(sa) * 24);
+      const hz = zombies[zombies.length - 1];
+      if (hz) hz.flash = 0.12;
+    }
+    S.shatter();
   }
   zombies.splice(i, 1);
   kills++; addScore(z.sc);
