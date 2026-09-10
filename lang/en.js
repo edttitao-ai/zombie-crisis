@@ -16,7 +16,7 @@ window.I18N.en = {
   reviveMsg: 'Revive armor — back on your feet!',
   waveHeal: 'Wave supply +35',
   forceFieldMsg: 'Emergency field — brief invulnerability!',
-  tip: 'Supplies stack in your kit instead of being used instantly:<br>Q uses medkits · G / R-Click throws grenades · F throws molotovs.<br>After each wave pick 1 of 4 upgrades that last the whole run.<br>Crates: SMG · Shotgun · Rocket Launcher · Tesla Gun (chain lightning) · Minigun (hyper fire)<br>Special zombies: Spitter (ranged acid) · Bloater (explodes up close) · Shielder (bullet-proof, weak to blasts & fire) · Screamer (enrages the horde — kill it first)',
+  tip: 'Supplies stack in your kit instead of being used instantly:<br>Q uses medkits · G / R-Click throws grenades · F throws molotovs.<br>After each wave pick 1 of 4 upgrades; pick a pet before you start — it fights and levels up with you.<br>Crates: SMG · Flamethrower · Minigun · Ricochet · Tesla Gun · Rail Sniper · Swarm Missiles · Devourer<br>Special zombies: Spitter (ranged acid) · Bloater (explodes) · Shielder (bullet-proof) · Screamer (enrages) · Splitter (splits on death) · Revenant (must kill twice) · Spore (heals allies) · Leaper (telegraphed pounce)',
   firstRun: 'First run — good luck!',
   best: 'Best score: {0}',
 
