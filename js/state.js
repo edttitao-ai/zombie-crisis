@@ -73,16 +73,44 @@ function addScore(n) {
   score += Math.round(n * 2 * comboMul());   // 得分 ×2（原 VIP 特权，现已通用）
 }
 
-function gameOver() {
+// ended = true 表示玩家主动「结束本局」（不是被打死）。成绩一样记入排行榜，
+// 只是标题与音效不同 —— 主动认输也是一局的合法结局，没理由不记账。
+function gameOver(ended) {
   state = 'gameover';
-  S.over();
+  paused = false;
+  cardOpen = false;
+  if (ended) S.clear(); else S.over();
   best = Math.max(best, score);
   STORE.set('zc_best', best);
+  boardAdd({ s: score, w: wave, k: kills, m: vipMode ? 1 : 0, d: Date.now() });
+  const titleKey = ended ? 'runEndedTitle' : 'gameOverTitle';
+  const ovTitle = document.getElementById('ovTitle');
+  if (ovTitle) { ovTitle.setAttribute('data-i18n', titleKey); ovTitle.textContent = t(titleKey); }
   document.getElementById('ovScore').textContent = score;
   document.getElementById('ovWave').textContent = wave;
   document.getElementById('ovKills').textContent = kills;
   document.getElementById('ovBest').textContent = best;
+  renderOverRank();
+  elPause.classList.add('hidden');
+  elCards.classList.add('hidden');
   elOver.classList.remove('hidden');
+}
+// 暂停菜单里的「结束本局」：直接进结算，不再等玩家被打死
+function endRun() { if (state === 'playing') gameOver(true); }
+
+// 结算界面的「本局排名」一行 + 顺势重画榜单（榜单本体在 board.js）
+function renderOverRank() {
+  const el = document.getElementById('ovRank');
+  if (el) {
+    if (lastRunRank > 0) {
+      el.textContent = fmt(t('boardRankIn'), lastRunRank);
+      el.className = 'rank-line' + (lastRunRank === 1 ? ' top1' : '');
+    } else {
+      el.textContent = fmt(t('boardNoRank'), BOARD_MAX);
+      el.className = 'rank-line none';
+    }
+  }
+  renderBoards();
 }
 
 function startWave(n) {

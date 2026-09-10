@@ -14,10 +14,16 @@ window.addEventListener('keydown', e => {
   }
   if (e.code === 'KeyL') window.I18N_API.toggleLang();
   if (state === 'start') {
+    // 排行榜面板开着时，回车/ Esc 只负责关面板 —— 否则回车会顺手开一局
+    if (!elBoard.classList.contains('hidden')) {
+      if (e.code === 'Escape' || e.code === 'Enter') closeBoard();
+      return;
+    }
     if (e.code === 'Enter' || e.code === 'Space') { startGame(lastMode); return; }
     if (e.code === 'KeyV') { startGame(true); return; }
   }
   if (state === 'gameover' && (e.code === 'Enter' || e.code === 'KeyR')) { startGame(lastMode); return; }
+  if (state === 'gameover' && e.code === 'Escape') { goHome(); return; }
   if (state === 'playing') {
     if (cardOpen && (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3' || e.code === 'Digit4')) {
       const c = cardPicks[+e.code.slice(-1) - 1];
@@ -107,3 +113,54 @@ function setPickMode(vip) {
 modeNormal.addEventListener('mouseenter', () => setPickMode(false));
 modeVIP.addEventListener('mouseenter', () => setPickMode(true));
 renderPetRow();
+
+/* ================= 排行榜面板 / 结束本局 =================
+   榜单是本机的（写在 localStorage 里，游戏本身不发任何网络请求）。
+   开始界面用「排行榜」按钮打开；暂停菜单的「结束本局」把当前成绩结算进榜，
+   而不是非得等玩家被打死 —— 主动认输也是一局的合法结局。 */
+const elBoard = document.getElementById('board');
+const btnBoardClear = document.getElementById('btnBoardClear');
+let boardClearArmed = false, boardClearT = 0;
+function openBoard() {
+  boardClearArmed = false;
+  btnBoardClear.textContent = t('boardClear');
+  renderBoards();
+  elBoard.classList.remove('hidden');
+  elStart.classList.add('hidden');
+}
+function closeBoard() {
+  elBoard.classList.add('hidden');
+  if (state === 'start') elStart.classList.remove('hidden');
+}
+// 回开始界面：结算/榜单都收起来，并刷新最高分与榜单（刚打完的那局可能是新纪录）
+function goHome() {
+  state = 'start';
+  paused = false;
+  elOver.classList.add('hidden');
+  elBoard.classList.add('hidden');
+  elStart.classList.remove('hidden');
+  showBest();
+  renderBoards();
+}
+document.getElementById('btnBoard').addEventListener('click', openBoard);
+document.getElementById('btnBoardClose').addEventListener('click', closeBoard);
+document.getElementById('btnHome').addEventListener('click', goHome);
+document.getElementById('btnEnd').addEventListener('click', () => endRun());
+// 清空不可撤销，所以做两段式确认：第一次点变成「再点一次确认清空」，3 秒后自动收回
+btnBoardClear.addEventListener('click', () => {
+  if (!boardClearArmed) {
+    boardClearArmed = true;
+    btnBoardClear.textContent = t('boardClearConfirm');
+    clearTimeout(boardClearT);
+    boardClearT = setTimeout(() => {
+      boardClearArmed = false;
+      btnBoardClear.textContent = t('boardClear');
+    }, 3000);
+    return;
+  }
+  clearTimeout(boardClearT);
+  boardClearArmed = false;
+  btnBoardClear.textContent = t('boardClear');
+  boardClear();
+  renderBoards();
+});

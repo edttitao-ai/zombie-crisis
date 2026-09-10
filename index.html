@@ -13,6 +13,7 @@
 <!-- 开始界面 -->
 <div id="start" class="overlay">
   <button id="btnLang" class="lang-btn" type="button"></button>
+  <button id="btnBoard" class="lang-btn corner-left" type="button" data-i18n="boardTitle">排行榜</button>
   <h1 data-i18n="title">僵尸危机</h1>
   <div class="sub" data-i18n="sub">Z O M B I E &nbsp; C R I S I S</div>
   <p class="desc" data-i18n="desc">夜晚降临，僵尸潮从四面八方涌来。守住每一波，活得越久，得分越高。</p>
@@ -51,14 +52,22 @@
 
 <!-- 结算界面 -->
 <div id="over" class="overlay hidden">
-  <h1 data-i18n="gameOverTitle">你被僵尸群吞噬了…</h1>
+  <h1 id="ovTitle" data-i18n="gameOverTitle">你被僵尸群吞噬了…</h1>
   <div class="stats">
     <span data-i18n="statScore">终局得分</span><span class="v" id="ovScore">0</span>
     <span data-i18n="statWave">坚持波数</span><span class="v" id="ovWave">0</span>
     <span data-i18n="statKills">击杀僵尸</span><span class="v" id="ovKills">0</span>
     <span data-i18n="statBest">历史最高</span><span class="v" id="ovBest">0</span>
   </div>
-  <button id="btnRetry" data-i18n="btnRetry">再来一局</button>
+  <div class="rank-line" id="ovRank"></div>
+  <div class="board-box">
+    <div class="bd-title" data-i18n="boardTitle">排行榜</div>
+    <div class="board-list" id="ovBoard"></div>
+  </div>
+  <div class="btn-row">
+    <button id="btnRetry" data-i18n="btnRetry">再来一局</button>
+    <button id="btnHome" class="ghost" data-i18n="btnHome">返回主界面</button>
+  </div>
   <div class="tip" data-i18n="retryTip">按 回车 快速重新开始</div>
 </div>
 
@@ -66,6 +75,23 @@
 <div id="pause" class="overlay hidden">
   <div class="ptitle" data-i18n="paused">已 暂 停</div>
   <div class="tip" data-i18n="pauseTip">按 P 或 Esc 继续战斗</div>
+  <div class="btn-row">
+    <button id="btnEnd" class="ghost danger" data-i18n="endRun">结束本局</button>
+  </div>
+  <div class="tip tip-sm" data-i18n="endRunTip">本局成绩会记入排行榜</div>
+</div>
+
+<!-- 排行榜 -->
+<div id="board" class="overlay hidden">
+  <div class="ptitle" data-i18n="boardTitle">排行榜</div>
+  <div class="tip" data-i18n="boardSub">本机记录 · 最多 10 条</div>
+  <div class="board-box">
+    <div class="board-list" id="boardList"></div>
+  </div>
+  <div class="btn-row">
+    <button id="btnBoardClose" data-i18n="btnBack">返回</button>
+    <button id="btnBoardClear" class="ghost danger" data-i18n="boardClear">清空记录</button>
+  </div>
 </div>
 
 <!-- 强化卡牌 -->
@@ -84,6 +110,7 @@
 <script src="js/base.js"></script>
 <script src="js/gfx.js"></script>
 <script src="js/state.js"></script>
+<script src="js/board.js"></script>
 <script src="js/entities.js"></script>
 <script src="js/input.js"></script>
 <script src="js/combat.js"></script>
