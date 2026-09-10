@@ -91,4 +91,23 @@ window.I18N.zh = {
   card_vest_d: '受到伤害降低 12%',
   card_fire_n: '助燃剂',
   card_fire_d: '燃烧伤害 +30%',
+
+  /* ===== 宠物 ===== */
+  petTitle: '选择宠物',
+  petChosen: '已选择：{0}',
+  petLocked: '「{0}」是 VIP 专属宠物 · 切到 VIP 模式才能选',
+  petFallback: '「{0}」是 VIP 专属 · 本局改用猎犬',
+  petHintDefault: '开局前选一只 · 它会跟着你自动打怪升级',
+  petLevelUp: '宠物升级',
+  petEvolve: '宠物进化！',
+  petHound: '猎犬',
+  petHoundD: '冲到最近的僵尸身上撕咬，单体高伤',
+  petDrone: '浮游炮',
+  petDroneD: '跟在你身边悬浮，点射最近的目标',
+  petAura: '光环灵',
+  petAuraD: '不主动攻击：持续治疗你，并拖慢周围僵尸',
+  petBolt: '雷灵',
+  petBoltD: '连锁闪电，一次电到一串（VIP 专属）',
+  petBlade: '环刃卫',
+  petBladeD: '绕着你旋转的刀轮，扫过即伤（VIP 专属）'
 };

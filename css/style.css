@@ -76,6 +76,31 @@
   .mode-card.vip .m-name { color: #ffd871; text-shadow: 0 0 16px rgba(255, 210, 74, 0.55); }
   .mode-card.vip .m-desc { color: #d9c98f; }
   .start-hint { margin-top: 20px; font-size: 12px; color: #7e9375; }
+  /* 宠物栏：与模式卡同一屏常驻。VIP 专属的那两只带锁标，普通模式下点它会提示。 */
+  .pet-block { margin-top: 26px; }
+  .pet-title { font-size: 13px; letter-spacing: 4px; color: #8ea681; margin-bottom: 10px; }
+  .pet-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .pet-chip {
+    --pc: #9fd48a;
+    width: 128px; padding: 10px 10px 9px; position: relative; cursor: pointer; text-align: center;
+    background: linear-gradient(165deg, #223026, #0d1310 76%);
+    border: 1.5px solid #40543f; border-radius: 8px;
+    transition: transform .13s, box-shadow .13s, border-color .13s;
+  }
+  .pet-chip:hover { transform: translateY(-4px); border-color: var(--pc); box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55), 0 0 20px color-mix(in srgb, var(--pc) 30%, transparent); }
+  .pet-chip.on { border-color: var(--pc); box-shadow: 0 0 0 1.5px var(--pc), 0 8px 22px rgba(0, 0, 0, 0.55); }
+  .pet-chip.locked { opacity: 0.46; }
+  .pet-chip .p-icon { height: 26px; color: var(--pc); }
+  .pet-chip .p-icon svg { width: 24px; height: 24px; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--pc) 45%, transparent)); }
+  .pet-chip .p-name { font-size: 14px; font-weight: 800; letter-spacing: 1.5px; color: #e4f0dc; margin: 5px 0 3px; }
+  .pet-chip.on .p-name { color: var(--pc); }
+  .pet-chip .p-desc { font-size: 10.5px; line-height: 1.5; color: #8fa383; min-height: 30px; }
+  .pet-chip .p-tag {
+    position: absolute; top: -9px; right: -6px; padding: 2px 8px; border-radius: 999px;
+    font-size: 10px; font-weight: 700; letter-spacing: 1px;
+    background: #b8860b; border: 1px solid #ffd24a; color: #241d05;
+  }
+  .pet-hint { margin-top: 10px; font-size: 12px; color: #8ea681; min-height: 16px; }
   .cards-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 24px; margin: 30px 0 26px; max-width: 1020px; }
   .card {
     --c: #ffd24a;

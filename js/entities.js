@@ -58,6 +58,7 @@ function killZombie(i) {
     z.boomed = true;
     zombies.splice(i, 1);
     kills++; addScore(z.sc);
+    gainPetXp(z);                              // 宠物靠击杀累积经验
     explode(z.x, z.y, 55, 115, 26);
     for (let g = 0; g < 14; g++) {
       const a = rand(0, 6.28), sp = rand(80, 300);
@@ -69,6 +70,7 @@ function killZombie(i) {
   }
   zombies.splice(i, 1);
   kills++; addScore(z.sc);
+  gainPetXp(z);                                // 宠物靠击杀累积经验
   blood(z.x, z.y, rand(0, 6.28), z.type === 'brute' ? 24 : 13);
   corpses.push({ x: z.x, y: z.y, r: z.r, col: z.col, ang: rand(0, 6.28), t: 0, life: 5 });
   if (corpses.length > CAP.corpses) corpses.shift();

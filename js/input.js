@@ -55,6 +55,12 @@ window.addEventListener('blur', () => {
   mouse.semiHeld = false;
 });
 function startFromMode(vip) {
+  const want = petDef(petPick);
+  if (want.vip && !vip) {
+    // 选了 VIP 专属宠物却开普通局：明确说清这一局会用谁，别让玩家以为拿到了
+    petHintEl.textContent = fmt(t('petFallback'), t(want.nameKey));
+  }
+  pickMode = vip;              // 记住这次选的模式，回到开始界面时宠物栏的解锁状态与它一致
   startGame(vip);
 }
 modeNormal.addEventListener('click', () => startFromMode(false));
@@ -62,3 +68,42 @@ modeVIP.addEventListener('click', () => startFromMode(true));
 btnRetry.addEventListener('click', () => startGame(lastMode));
 document.getElementById('btnLang').addEventListener('click', () => window.I18N_API.toggleLang());
 
+/* ================= 开始界面：宠物栏 =================
+   一屏常驻。鼠标移到某个模式卡上时，petRow 的可选状态跟着切换 ——
+   普通模式下 VIP 专属那两只带锁标、点了会给提示，而不是静默失败。 */
+const petRowEl = document.getElementById('petRow');
+const petHintEl = document.getElementById('petHint');
+let pickMode = lastMode;                        // 当前打算玩的模式，决定哪些宠物可选
+function petUnlocked(d) { return !d.vip || pickMode; }
+function renderPetRow() {
+  if (!petRowEl) return;
+  petRowEl.innerHTML = '';
+  for (const d of PETS) {
+    const locked = !petUnlocked(d);
+    const el = document.createElement('div');
+    el.className = 'pet-chip' + (d.id === petPick ? ' on' : '') + (locked ? ' locked' : '');
+    el.style.setProperty('--pc', d.col);
+    el.innerHTML =
+      '<div class="p-icon">' + d.icon + '</div>' +
+      '<div class="p-name">' + t(d.nameKey) + '</div>' +
+      (d.vip ? '<div class="p-tag">VIP</div>' : '') +
+      '<div class="p-desc">' + t(d.descKey) + '</div>';
+    el.addEventListener('click', () => {
+      if (locked) { petHintEl.textContent = fmt(t('petLocked'), t(d.nameKey)); return; }
+      petPick = d.id;
+      STORE.set('zc_pet', petPick);
+      petHintEl.textContent = fmt(t('petChosen'), t(d.nameKey));
+      renderPetRow();
+    });
+    petRowEl.appendChild(el);
+  }
+  if (petHintEl && !petHintEl.textContent) petHintEl.textContent = t('petHintDefault');
+}
+function setPickMode(vip) {
+  if (pickMode === vip) return;
+  pickMode = vip;
+  renderPetRow();
+}
+modeNormal.addEventListener('mouseenter', () => setPickMode(false));
+modeVIP.addEventListener('mouseenter', () => setPickMode(true));
+renderPetRow();

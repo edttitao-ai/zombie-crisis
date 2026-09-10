@@ -91,4 +91,23 @@ window.I18N.en = {
   card_vest_d: 'Take 12% less damage',
   card_fire_n: 'Accelerant',
   card_fire_d: 'Burn damage +30%',
+
+  /* ===== Pets ===== */
+  petTitle: 'Choose a Pet',
+  petChosen: 'Selected: {0}',
+  petLocked: '"{0}" is a VIP-exclusive pet · switch to VIP mode to pick it',
+  petFallback: '"{0}" is VIP-only · this run uses the Hound',
+  petHintDefault: 'Pick one before you start · it fights and levels up with you',
+  petLevelUp: 'Pet level up',
+  petEvolve: 'Pet evolved!',
+  petHound: 'Hound',
+  petHoundD: 'Charges the nearest zombie and mauls it — high single-target',
+  petDrone: 'Sentry Drone',
+  petDroneD: 'Hovers beside you and shoots the nearest target',
+  petAura: 'Aura Wisp',
+  petAuraD: 'Never attacks: heals you and slows nearby zombies',
+  petBolt: 'Storm Wisp',
+  petBoltD: 'Chain lightning that arcs through a line of enemies (VIP only)',
+  petBlade: 'Blade Ring',
+  petBladeD: 'Blades orbiting you, damaging everything they sweep (VIP only)'
 };

@@ -22,7 +22,7 @@ function drawHUD(now) {
   const p = player;
   // ---- 左上面板：生命 / 武器 / 手雷 / 冲刺 ----
   ctx.textBaseline = 'middle';
-  hudPanel(16, 16, 262, 140, 10, 'rgba(212,59,48,0.5)');
+  hudPanel(16, 16, 262, 158, 10, 'rgba(212,59,48,0.5)');
   if (vipMode) { // VIP 徽章
     ctx.fillStyle = '#ffd24a';
     ctx.font = 'bold 12px ' + FONT;
@@ -137,6 +137,26 @@ function drawHUD(now) {
     ctx.fillText(fmt(t('rapid'), rapidT.toFixed(1)), 30, gy + 24);
   }
 
+  // 宠物：图标 + 名字 + 等级 + 经验条。它是长期陪伴物，成长必须随时看得见。
+  if (pet) {
+    const pd = petDef(pet.kind);
+    const py2 = gy + 44;
+    const capped = pet.lv >= petCap();
+    const pct = capped ? 1 : clamp(pet.xp / petNeed(pet.lv), 0, 1);
+    ctx.fillStyle = 'rgba(0,0,0,0.34)';
+    rr(ctx, 24, py2 - 10, 246, 20, 5); ctx.fill();
+    ctx.fillStyle = hexA(pd.col, capped ? 0.20 : 0.30);
+    rr(ctx, 24, py2 - 10, Math.max(8, 246 * pct), 20, 5); ctx.fill();
+    drawPetIcon(ctx, 38, py2, 8, pd, pd.col);
+    ctx.fillStyle = '#fdf6ea';
+    ctx.font = 'bold 12px ' + FONT;
+    ctx.fillText(t(pd.nameKey), 52, py2 + 1);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = pd.col;
+    ctx.fillText((pet.evo > 0 ? '★' : '') + 'Lv.' + pet.lv +
+                 (capped ? '' : '  ' + pet.xp + '/' + petNeed(pet.lv)), 262, py2 + 1);
+    ctx.textAlign = 'left';
+  }
 
   // ---- 右上面板：得分 / 波次 ----
   const pw = 196, px2 = W - pw - 26;

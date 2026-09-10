@@ -66,6 +66,10 @@ const S = {
   roll()   { tone(90, 0.5, 'sawtooth', 0.13, 55); noiseBurst(0.34, 0.16, 480); },        // 沉重滚动
 
   /* ===== 宠物：每次出手都要有声音，否则僵尸就是「莫名其妙死了」 ===== */
+  bite()     { noiseBurst(0.09, 0.22, 1100); tone(150, 0.08, 'square', 0.09, 70); },
+  petShot()  { tone(760, 0.045, 'square', 0.055, 300); noiseBurst(0.04, 0.10, 2600); },
+  heal()     { tone(700, 0.12, 'sine', 0.08, 1050); },
+  freeze()   { tone(1500, 0.06, 'triangle', 0.05, 900); },
 
   /* ===== Boss ===== */
   mortar()   { tone(120, 0.35, 'square', 0.11, 46); noiseBurst(0.22, 0.14, 620); }   // 迫击炮出膛的低沉"咚"

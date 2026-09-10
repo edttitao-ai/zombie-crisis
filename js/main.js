@@ -4,7 +4,7 @@
 function showBest() {
   bestStart.textContent = best > 0 ? fmt(t('best'), best) : t('firstRun');
 }
-window.I18N_ONAPPLY = () => { showBest(); };
+window.I18N_ONAPPLY = () => { showBest(); renderPetRow(); };
 showBest();
 
 let last = performance.now();

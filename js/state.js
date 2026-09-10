@@ -9,6 +9,8 @@ let combo = 0, comboT = 0, hitStopT = 0;   // 连杀计数 / 连杀窗口 / 击�
 let burnCd = 0;                            // 点燃节流：火焰喷射器的灼烧不能无限叠加
 let vipMode = false;
 let lastMode = STORE.get('zc_lastmode') === 'vip';
+let petPick = STORE.get('zc_pet') || 'hound';   // 开始界面选中的宠物（跨局记住）
+let pet = null, petArcs = [];                   // 本局宠物 + 它的电弧特效
 let vipDropT = 0;
 let wave, score, kills, toSpawn, spawnCd, nextWaveIn, waveActive, bossIn = -1, bossType = null;
 let waveMsg, waveMsgT, shake, hurtT, rapidT, muzzleT, hitMarkT;
@@ -25,6 +27,7 @@ function reset() {
   if (groundCtx) compositeGround();            // 顺带把上一局残留的血迹从地面抹掉
   corpses = []; casings = []; pops = []; nades = []; mols = []; fireZones = []; flashes = [];
   acidBolts = []; rings = []; teslaChains = []; beams = []; rollers = []; shells = [];
+  pet = null; petArcs.length = 0;
   combo = 0; comboT = 0; hitStopT = 0; burnCd = 0;
   resetUpgrades();
   upg.speed += 0.1;      // 开局自带移速 +10%（原 VIP 特权，现已对普通用户开放）
@@ -40,17 +43,22 @@ function reset() {
   shake = 0; hurtT = 0; rapidT = 0; muzzleT = 0; hitMarkT = 0;
 }
 
-function startGame(vip) {
+function startGame(vip, petId) {
   ensureAudio();
   vipMode = !!vip;
   lastMode = vipMode;
   STORE.set('zc_lastmode', vipMode ? 'vip' : 'normal');
+  // 宠物：VIP 专属宠物在普通模式下不生效，自动回退到默认猎犬（开始界面也会拦住这种情况）
+  const want = petId || petPick || 'hound';
+  petPick = (petDef(want).vip && !vipMode) ? 'hound' : want;
+  STORE.set('zc_pet', petPick);
   reset();
   // 开局装备：普通用户是特斯拉电枪，VIP 是无限弹匣加特林；两者都备弹无限、投掷物与医疗满载
   player.weapon = fallbackWeapon();
   player.mag = curMagSize();
   player.reserve = Infinity;
   player.grenades = 5; player.mols = 3; player.medkits = 3;
+  pet = createPet(petPick);
   state = 'playing'; paused = false; cardOpen = false;
   elStart.classList.add('hidden');
   elOver.classList.add('hidden');

@@ -109,6 +109,8 @@ function render() {
   }
 
   // 宠物：画在玩家暖主光之前，这样它会跟其它实体一样被主光照到
+  drawPet(now);
+  drawPetArcs();
 
   // 玩家暖主光：两层叠加——紧凑的亮光池 + 大范围柔和衰减。
   // 与地面烘焙的青蓝环境光形成冷暖对比，这是层次的主要来源。
@@ -254,6 +256,14 @@ function render() {
       ctx.beginPath(); ctx.arc(z.x, z.y, z.r + 5, 0, 7); ctx.stroke();
       ctx.globalAlpha = 1;
     }
+    // 被宠物光环减速：脚下一圈寒气。没有这个标记，"僵尸变慢了"是看不见的。
+    if (z.slowT > 0) {
+      ctx.globalAlpha = 0.30 + 0.22 * Math.sin(now * 6 + z.x * 0.05);
+      ctx.strokeStyle = '#9ff0b0';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(z.x, z.y + z.r * 0.55, z.r * 0.9, z.r * 0.34, 0, 0, 7); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
     // 冲撞者蓄力：一条预警线，玩家必须看得见它要冲哪 —— 看不见的冲刺是耍赖，不是难度
     if (z.boss === 'charger' && z.windT > 0) {
       const wk = 1 - z.windT / 0.75;
@@ -359,16 +369,21 @@ function render() {
   ctx.lineCap = 'round';
   for (const b of bullets) {
     const nb = b.bounces || 0;                       // 跳弹次数：越弹越亮越粗
-    const tail = 0.022;
+    const isPet = b.petShot;                         // 宠物弹：拖尾更长更亮 + 弹头亮点
+    const tail = isPet ? 0.055 : 0.022;
     const glowCol = b.pierce ? 'rgba(126,200,255,0.35)'
-                             : hexA(b.wc || '#ffbe50', Math.min(0.75, 0.3 + nb * 0.09));
+                             : hexA(b.wc || '#ffbe50', isPet ? 0.6 : Math.min(0.75, 0.3 + nb * 0.09));
     const coreCol = b.pierce ? '#b9e2ff' : (nb > 0 ? '#eafff4' : (b.wc || '#ffe9a8'));
     ctx.strokeStyle = glowCol;
-    ctx.lineWidth = (b.pierce ? 7 : 5.5) + nb * 0.9;
+    ctx.lineWidth = (b.pierce ? 7 : 5.5) + nb * 0.9 + (isPet ? 1.6 : 0);
     ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * tail, b.y - b.vy * tail); ctx.stroke();
     ctx.strokeStyle = coreCol;
-    ctx.lineWidth = 2.2;
+    ctx.lineWidth = isPet ? 3 : 2.2;
     ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * tail * 0.7, b.y - b.vy * tail * 0.7); ctx.stroke();
+    if (isPet) {                                     // 弹头亮点：一眼看出这一发是宠物打的
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(b.x, b.y, 2.4, 0, 7); ctx.fill();
+    }
   }
 
   // 狙击射线：炽白芯 + 青色辉光，随时间收窄淡出

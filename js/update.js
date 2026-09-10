@@ -218,10 +218,11 @@ function update(dt) {
     z.atkCd -= dt;
     z.buffT = Math.max(0, z.buffT - dt);
     z.screamT = Math.max(0, z.screamT - dt);
+    z.slowT = Math.max(0, (z.slowT || 0) - dt);   // 宠物光环的减速（每帧被光环重新打上）
     // 行走循环相位：按自身速度推进，快的僵尸迈步更快
     z.anim = (z.anim || 0) + dt * (3.4 + z.speed * 0.028);
     const a = Math.atan2(p.y - z.y, p.x - z.x);
-    const sp = z.speed * (z.buffT > 0 ? 1.5 : 1); // 狂化加速
+    const sp = z.speed * (z.buffT > 0 ? 1.5 : 1) * (z.slowT > 0 ? 0.55 : 1); // 狂化加速 / 被光环拖慢
     z.x += Math.cos(a) * sp * dt;
     z.y += Math.sin(a) * sp * dt;
     if (z.type === 'runner') { // 疾跑者蛇形走位
@@ -381,6 +382,12 @@ function update(dt) {
   sweepDead();         // 收尾：结算所有 hp<=0 目标（含连锁爆炸/放电留下的残留）
   separateZombies();   // 僵尸互相挤开
 
+  // 宠物：AI + 自主攻击（它自己的击杀也走 killZombie → sweepDead，这里放在收尾之后最干净）
+  updatePet(dt);
+  for (let i = petArcs.length - 1; i >= 0; i--) {
+    petArcs[i].t += dt;
+    if (petArcs[i].t >= petArcs[i].life) petArcs.splice(i, 1);
+  }
 
   // 迫击炮弹：落地前一直有落点警示，到点才爆炸（区域封锁，玩家有反应时间）
   for (let i = shells.length - 1; i >= 0; i--) {

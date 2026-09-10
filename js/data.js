@@ -291,3 +291,41 @@ function pickCard(c) {
   nextWaveIn = 3;
   S.pickup();
 }
+
+/* ================= 宠物 =================
+   开局前在开始界面选择一只；它自主跟随并攻击，靠击杀累积经验自动升级。
+   普通模式等级上限 10；**VIP 模式上限 15，且每 5 级「进化」一次**（外形改变 + 机制增强）——
+   这是刻意做的不对称：VIP 的宠物成长得更夸张。
+   宠物不会被打死：本作只做「陪你打」这一层，不引入受伤/复活系统。 */
+const PET_XP_BASE = 4;          // 升到下一级所需击杀 = BASE + 当前等级 × STEP
+const PET_XP_STEP = 3;
+const PET_LV_NORMAL = 10;
+const PET_LV_VIP = 15;
+const PET_EVOLVE_EVERY = 5;     // VIP：每到 5 的倍数等级进化一次
+// 每级成长率：普通 / VIP。VIP 的伤害、体型、攻速成长都明显更快 ——「夸张」就落在三个数上
+const PET_GROW = { dmg: 0.17, rad: 0.65, cd: 0.975 };
+const PET_GROW_VIP = { dmg: 0.28, rad: 1.05, cd: 0.955 };
+
+const PETS = [
+  { id: 'hound', vip: false, col: '#e6b06a', nameKey: 'petHound', descKey: 'petHoundD',
+    // 近战：冲到最近的僵尸身上撕咬，单体高伤 + 击退
+    base: { dmg: 30, cd: 0.5, r: 10, range: 270, speed: 272, knock: 2.6, keep: 44 },
+    icon: '<svg viewBox="0 0 24 24"><path d="M4 6l3 4h9l3-4 1 6-2 3v4H6v-4L4 12z" fill="currentColor"/><circle cx="9" cy="10" r="1.3" fill="#0c120c"/><circle cx="14" cy="10" r="1.3" fill="#0c120c"/></svg>' },
+  { id: 'drone', vip: false, col: '#8fd8ff', nameKey: 'petDrone', descKey: 'petDroneD',
+    // 远程：跟在身边悬浮，点射最近的目标
+    base: { dmg: 13, cd: 0.34, r: 9, range: 430, bspeed: 620, knock: 0.8, keep: 40 },
+    icon: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="6" height="6" rx="1.4" fill="currentColor"/><path d="M9 10H5.5M15 10h3.5M9 14H5.5M15 14h3.5" stroke="currentColor" stroke-width="1.6"/><circle cx="4.6" cy="10" r="2.2" fill="currentColor"/><circle cx="19.4" cy="10" r="2.2" fill="currentColor"/><circle cx="4.6" cy="14" r="2.2" fill="currentColor"/><circle cx="19.4" cy="14" r="2.2" fill="currentColor"/></svg>' },
+  { id: 'aura', vip: false, col: '#9ff0b0', nameKey: 'petAura', descKey: 'petAuraD',
+    // 辅助：不主动攻击。持续治疗你，并让范围内的僵尸变慢
+    base: { dmg: 0, cd: 1, r: 12, range: 148, heal: 1.5, slow: 0.55, keep: 52 },
+    icon: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.4" fill="currentColor"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" stroke="currentColor" stroke-width="1.8"/></svg>' },
+  { id: 'bolt', vip: true, col: '#c9a2ff', nameKey: 'petBolt', descKey: 'petBoltD',
+    // VIP：连锁闪电，一次电到一串（每进化 +2 跳）
+    base: { dmg: 26, cd: 1.25, r: 11, range: 340, hops: 3, hopDist: 190, keep: 46 },
+    icon: '<svg viewBox="0 0 24 24"><path d="M13 2 5 13h5.5L9 22l8-11h-5.5z" fill="currentColor"/></svg>' },
+  { id: 'blade', vip: true, col: '#ffd24a', nameKey: 'petBlade', descKey: 'petBladeD',
+    // VIP：环绕刀轮，扫过即伤（每进化 +1 片刀）
+    base: { dmg: 20, cd: 0.32, r: 10, orbitR: 64, spin: 3.1, blades: 1, keep: 0 },
+    icon: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2.6l2.4 4.2-2.4 2.4-2.4-2.4zM21.4 12l-4.2 2.4-2.4-2.4 2.4-2.4zM12 21.4l-2.4-4.2 2.4-2.4 2.4 2.4zM2.6 12l4.2-2.4 2.4 2.4-2.4 2.4z" fill="currentColor"/></svg>' }
+];
+function petDef(id) { for (const p of PETS) if (p.id === id) return p; return PETS[0]; }
