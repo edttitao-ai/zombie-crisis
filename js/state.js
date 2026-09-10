@@ -3,7 +3,7 @@
 /* ================= 游戏状态 ================= */
 let state = 'start';          // start | playing | gameover
 let paused = false;
-let player, bullets, zombies, parts, pickups, corpses, casings, pops, nades, mols, fireZones, flashes, acidBolts, rings, teslaChains, beams, rollers;
+let player, bullets, zombies, parts, pickups, corpses, casings, pops, nades, mols, fireZones, flashes, acidBolts, rings, teslaChains, beams, rollers, shells;
 let upg, upgTaken, regenT = 0, cardOpen = false, cardPicks = [];
 let combo = 0, comboT = 0, hitStopT = 0;   // 连杀计数 / 连杀窗口 / 击杀顿帧
 let burnCd = 0;                            // 点燃节流：火焰喷射器的灼烧不能无限叠加
@@ -24,7 +24,7 @@ function reset() {
   stains.length = 0; gameT = 0; stainT = 0;   // 贴花列表常驻，只清空内容
   if (groundCtx) compositeGround();            // 顺带把上一局残留的血迹从地面抹掉
   corpses = []; casings = []; pops = []; nades = []; mols = []; fireZones = []; flashes = [];
-  acidBolts = []; rings = []; teslaChains = []; beams = []; rollers = [];
+  acidBolts = []; rings = []; teslaChains = []; beams = []; rollers = []; shells = [];
   combo = 0; comboT = 0; hitStopT = 0; burnCd = 0;
   resetUpgrades();
   upg.speed += 0.1;      // 开局自带移速 +10%（原 VIP 特权，现已对普通用户开放）

@@ -299,6 +299,81 @@ function update(dt) {
         rings.push({ x: z.x, y: z.y, t: 0, life: 0.7, col: 'rgba(200,120,255,0.8)' });
         S.scream();
       }
+    } else if (z.boss === 'charger') {
+      // 冲撞者：蓄力（站定 + 预警线）→ 直线猛冲 → 撞完硬直（这是你的输出窗口）
+      // 注意：三段各自的计时都在自己的分支里递减 —— 若在分支前统一递减，
+      // windT 会被先减到 0，导致「蓄力结束 → 开始冲刺」那一步永远不触发（踩过）。
+      z.chgCd = (z.chgCd === undefined ? 2.4 : z.chgCd) - dt;
+      if (z.windT > 0) {
+        z.windT -= dt;
+        z.dashA = a;                                        // 持续锁定朝向：玩家看得见它瞄哪
+        z.x -= Math.cos(a) * sp * dt;                       // 抵消上面的默认追击位移 → 站定蓄力
+        z.y -= Math.sin(a) * sp * dt;
+        if (z.windT <= 0) { z.windT = 0; z.dashT = 0.36; S.scream(); shake = Math.max(shake, 7); }
+      } else if (z.dashT > 0) {
+        z.dashT -= dt;
+        z.x -= Math.cos(a) * sp * dt;                       // 抵消默认位移，改走冲刺方向
+        z.y -= Math.sin(a) * sp * dt;
+        z.x = clamp(z.x + Math.cos(z.dashA) * 760 * dt, z.r, W - z.r);
+        z.y = clamp(z.y + Math.sin(z.dashA) * 760 * dt, z.r, H - z.r);
+        if (parts.length < CAP.parts - 2) {
+          parts.push({ x: z.x, y: z.y, vx: rand(-40, 40), vy: rand(-40, 40),
+                       life: 0.22, maxLife: 0.22, size: rand(3, 6), col: 'rgba(210,105,30,0.5)' });
+        }
+        if (Math.hypot(p.x - z.x, p.y - z.y) < z.r + p.r + 8 && z.atkCd <= 0) {
+          z.atkCd = 1.2;
+          damagePlayer(z.dmg * 1.7);
+          const ka = Math.atan2(p.y - z.y, p.x - z.x);
+          p.x = clamp(p.x + Math.cos(ka) * 54, 20, W - 20);   // 撞飞
+          p.y = clamp(p.y + Math.sin(ka) * 54, 20, H - 20);
+          shake = Math.max(shake, 12);
+        }
+        if (z.dashT <= 0) { z.dashT = 0; z.dazedT = 1.7; }    // 冲完硬直
+      } else if (z.dazedT > 0) {
+        z.dazedT -= dt;
+        z.x -= Math.cos(a) * sp * dt * 0.85;                // 硬直：几乎不动
+        z.y -= Math.sin(a) * sp * dt * 0.85;
+      } else if (z.chgCd <= 0 && d < 470) {
+        z.windT = 0.75;
+        z.chgCd = 4.4;
+        rings.push({ x: z.x, y: z.y, t: 0, life: 0.7, col: 'rgba(255,150,60,0.9)' });
+        S.buzz();
+      }
+    } else if (z.boss === 'mortar') {
+      // 迫击者：保持远距离，周期性抛射带落点警示的炮弹 —— 区域封锁，逼你一直动
+      if (d < 300) { z.x -= Math.cos(a) * sp * dt * 0.8; z.y -= Math.sin(a) * sp * dt * 0.8; }
+      z.mortCd = (z.mortCd === undefined ? 1.8 : z.mortCd) - dt;
+      if (z.mortCd <= 0 && d < 780) {
+        z.mortCd = 3.3;
+        const cnt = 1 + (Math.random() < 0.45 ? 1 : 0);
+        for (let k = 0; k < cnt; k++) {
+          shells.push({
+            x: clamp(p.x + rand(-48, 48), 34, W - 34),
+            y: clamp(p.y + rand(-48, 48), 34, H - 34),
+            t: 0, fuse: 1.15, r: 96, dmg: 46, pdmg: 24
+          });
+        }
+        S.mortar();
+      }
+    } else if (z.boss === 'necro') {
+      // 纳尸者：把附近的尸体重新拉起来（并回复自身）—— 不清场就会被自己的战果反噬
+      z.raiseCd = (z.raiseCd === undefined ? 2.4 : z.raiseCd) - dt;
+      if (z.raiseCd <= 0 && d < 720) {
+        z.raiseCd = 4.6;
+        let raised = 0;
+        for (let ci = corpses.length - 1; ci >= 0 && raised < 3; ci--) {
+          const cp = corpses[ci];
+          if (Math.hypot(cp.x - z.x, cp.y - z.y) > 280) continue;
+          corpses.splice(ci, 1);
+          spawnAt(Math.random() < 0.45 ? 'runner' : 'normal', cp.x, cp.y);
+          raised++;
+        }
+        if (!raised) { spawnAt('normal', z.x + rand(-60, 60), z.y + rand(-60, 60)); raised = 1; }
+        z.hp = Math.min(z.maxHp, z.hp + 26 * raised);        // 复生会回血：拖越久越难打
+        rings.push({ x: z.x, y: z.y, t: 0, life: 0.8, col: 'rgba(80,220,180,0.85)' });
+        flashes.push({ x: z.x, y: z.y, r: 96, t: 0, life: 0.25 });
+        S.scream();
+      }
     }
 
     if (z.dmg > 0 && d < z.r + p.r + 2 && z.atkCd <= 0) { z.atkCd = 0.9; damagePlayer(z.dmg); }
@@ -307,6 +382,17 @@ function update(dt) {
   separateZombies();   // 僵尸互相挤开
 
 
+  // 迫击炮弹：落地前一直有落点警示，到点才爆炸（区域封锁，玩家有反应时间）
+  for (let i = shells.length - 1; i >= 0; i--) {
+    const sh = shells[i];
+    sh.t += dt;
+    if (sh.t >= sh.fuse) {
+      shells.splice(i, 1);
+      explode(sh.x, sh.y, sh.dmg, sh.r, sh.pdmg);
+      rings.push({ x: sh.x, y: sh.y, t: 0, life: 0.45, col: 'rgba(255,190,90,0.9)' });
+      shake = Math.max(shake, 9);
+    }
+  }
 
   // 补给
   let tookGun = false;   // 一帧最多换一把枪（见下方武器分支）

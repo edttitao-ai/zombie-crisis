@@ -254,6 +254,27 @@ function render() {
       ctx.beginPath(); ctx.arc(z.x, z.y, z.r + 5, 0, 7); ctx.stroke();
       ctx.globalAlpha = 1;
     }
+    // 冲撞者蓄力：一条预警线，玩家必须看得见它要冲哪 —— 看不见的冲刺是耍赖，不是难度
+    if (z.boss === 'charger' && z.windT > 0) {
+      const wk = 1 - z.windT / 0.75;
+      const wa = z.dashA || 0;
+      ctx.globalAlpha = 0.22 + 0.5 * wk;
+      ctx.strokeStyle = '#ff8a3c';
+      ctx.lineWidth = 3 + 7 * wk;
+      ctx.beginPath();
+      ctx.moveTo(z.x, z.y);
+      ctx.lineTo(z.x + Math.cos(wa) * 440, z.y + Math.sin(wa) * 440);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    // 冲撞者硬直：一圈金黄，明确告诉玩家"现在打它"
+    if (z.boss === 'charger' && z.dazedT > 0) {
+      ctx.globalAlpha = 0.45 + 0.35 * Math.sin(now * 15);
+      ctx.strokeStyle = '#ffe08a';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(z.x, z.y, z.r + 9, 0, 7); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
     // 血条
     if (z.hp < z.maxHp) {
       const w = z.r * 2;
@@ -373,6 +394,27 @@ function render() {
     ctx.beginPath(); ctx.arc(b.x, b.y, 4.5, 0, 7); ctx.fill();
   }
 
+  // 迫击炮弹落点：外圈是伤害范围、内圈随引信收缩、炮弹从上方落下 —— 必须先看得见再挨打
+  for (const sh of shells) {
+    const k = 1 - sh.t / sh.fuse;                  // 1 → 0
+    const heat = 1 - k;
+    ctx.globalAlpha = 0.24 + 0.5 * heat;
+    ctx.strokeStyle = '#ffbe5a';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(sh.x, sh.y, sh.r, 0, 7); ctx.stroke();
+    ctx.globalAlpha = 0.5 + 0.5 * heat;
+    ctx.beginPath(); ctx.arc(sh.x, sh.y, Math.max(6, sh.r * k), 0, 7); ctx.stroke();
+    ctx.globalAlpha = 0.35 + 0.4 * heat;
+    ctx.beginPath();
+    ctx.moveTo(sh.x - sh.r, sh.y); ctx.lineTo(sh.x - sh.r * 0.72, sh.y);
+    ctx.moveTo(sh.x + sh.r * 0.72, sh.y); ctx.lineTo(sh.x + sh.r, sh.y);
+    ctx.moveTo(sh.x, sh.y - sh.r); ctx.lineTo(sh.x, sh.y - sh.r * 0.72);
+    ctx.moveTo(sh.x, sh.y + sh.r * 0.72); ctx.lineTo(sh.x, sh.y + sh.r);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#ffdf9a';
+    ctx.beginPath(); ctx.arc(sh.x, sh.y - (1 - k) * 160, 4.5, 0, 7); ctx.fill();
+  }
 
   // 特斯拉闪电链（枪口连到目标，目标之间连环，逐帧抖动）
   for (const tc of teslaChains) {

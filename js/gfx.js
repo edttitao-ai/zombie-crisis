@@ -270,6 +270,12 @@ function drawZombiePose(g, type, R, ph, S2, det) {
   // Boss：更宽更厚的躯干、更小的头，靠体型一眼分辨
   if (type === 'butcher')  { torsoW = 1.18; torsoH = 0.78; armLen = 1.05; armW = 0.55; headR = 0.30; headY = -0.44; aL = 0.46; aR = 0.56; fistR = 0.34; lean = -0.06; }
   if (type === 'brood')    { torsoW = 1.02; torsoH = 0.95; armLen = 0.70; armW = 0.38; headR = 0.44; headY = -0.50; aL = 0.48; aR = 0.56; lean = 0.04; }
+  // 冲撞者：低伏前倾的野兽轮廓，头压得很低，肩特别厚
+  if (type === 'charger')  { torsoW = 1.10; torsoH = 0.66; armLen = 0.86; armW = 0.52; headR = 0.30; headY = -0.30; aL = 0.40; aR = 0.52; fistR = 0.30; lean = -0.16; }
+  // 迫击者：矮壮的炮台体型，手臂很短（它不靠手打）
+  if (type === 'mortar')   { torsoW = 1.00; torsoH = 0.86; armLen = 0.52; armW = 0.40; headR = 0.28; headY = -0.54; aL = 0.30; aR = 0.36; lean = 0.02; }
+  // 纳尸者：瘦高、长臂，肩窄 —— 和另外几只的"厚"形成对比
+  if (type === 'necro')    { torsoW = 0.62; torsoH = 0.94; armLen = 1.42; armW = 0.24; headR = 0.34; headY = -0.60; aL = 0.44; aR = 0.52; lean = -0.03; }
 
   // 左右腿各用一个相位（相差 π）。不能只用一个 sin(ph) —— 它关于半周期对称，
   // 会让第 0 帧与第 2 帧完全相同，4 帧里只有 2 个不同的姿势。
@@ -419,6 +425,54 @@ function drawZombiePose(g, type, R, ph, S2, det) {
     for (let k = 0; k < 4; k++) {
       g.beginPath();
       g.arc(cx + Math.cos(k * 1.57) * R * 0.32, Y(ty + 0.05) + Math.sin(k * 1.57) * R * 0.27, R * 0.17, 0, 7);
+      g.stroke();
+    }
+  } else if (type === 'charger') {
+    // 冲撞者：额前一根独角 + 背脊骨刺 + 低垂的头，一眼看出"它是拿来撞的"
+    g.fillStyle = '#efe3cd';
+    g.beginPath();
+    g.moveTo(hx + R * headR * 0.1, hy - R * headR * 0.95);
+    g.lineTo(hx + R * headR * 1.65, hy - R * headR * 1.15);
+    g.lineTo(hx + R * headR * 0.4, hy - R * headR * 0.35);
+    g.closePath(); g.fill();
+    g.fillStyle = '#c9b79a';
+    for (let k = 0; k < 4; k++) {
+      const bx2 = cx - (0.28 + k * 0.20) * R, by2 = Y(ty - 0.16 - k * 0.03);
+      g.beginPath();
+      g.moveTo(bx2, by2 + R * 0.12);
+      g.lineTo(bx2 - R * 0.06, by2 - R * 0.22);
+      g.lineTo(bx2 + R * 0.14, by2 + R * 0.10);
+      g.closePath(); g.fill();
+    }
+    g.fillStyle = '#3a1206';                 // 发红的眼
+    g.beginPath(); g.arc(hx, hy - R * headR * 0.12, R * 0.075, 0, 7); g.fill();
+  } else if (type === 'mortar') {
+    // 迫击者：背上一根粗炮管 + 弹带 —— 它不靠手打，靠抛射
+    g.fillStyle = '#4b5426';
+    g.fillRect(cx - R * 0.16, Y(ty - 0.62), R * 0.34, R * 0.92);
+    g.fillStyle = '#6d7838';
+    g.fillRect(cx - R * 0.12, Y(ty - 0.60), R * 0.18, R * 0.86);
+    g.fillStyle = '#2b3116';
+    g.beginPath(); g.ellipse(cx + R * 0.01, Y(ty - 0.62), R * 0.15, R * 0.07, 0, 0, 7); g.fill();
+    g.fillStyle = '#c9a24a';                 // 弹带上的三发
+    for (let k = 0; k < 3; k++) {
+      g.beginPath(); g.arc(cx - R * 0.52 + k * R * 0.16, Y(ty + 0.30), R * 0.07, 0, 7); g.fill();
+    }
+  } else if (type === 'necro') {
+    // 纳尸者：胸腔里一颗跳动着的魂核 + 周身游丝
+    const ng = g.createRadialGradient(cx, Y(ty - 0.02), 0, cx, Y(ty - 0.02), R * 0.46);
+    ng.addColorStop(0, 'rgba(210,255,235,0.95)');
+    ng.addColorStop(0.5, 'rgba(80,220,180,0.55)');
+    ng.addColorStop(1, 'rgba(40,120,100,0)');
+    g.fillStyle = ng;
+    g.beginPath(); g.arc(cx, Y(ty - 0.02), R * 0.42, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(150,255,220,0.55)'; g.lineWidth = 1.3;
+    for (let k = 0; k < 3; k++) {
+      const a2 = k * 2.1 + 0.4;
+      g.beginPath();
+      g.moveTo(cx + Math.cos(a2) * R * 0.5, Y(ty + 0.1) + Math.sin(a2) * R * 0.42);
+      g.quadraticCurveTo(cx + Math.cos(a2) * R * 0.86, Y(ty - 0.1) + Math.sin(a2) * R * 0.66,
+                         cx + Math.cos(a2 + 0.8) * R * 0.62, Y(ty - 0.28) + Math.sin(a2 + 0.8) * R * 0.5);
       g.stroke();
     }
   }

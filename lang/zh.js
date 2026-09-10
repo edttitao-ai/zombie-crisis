@@ -63,6 +63,9 @@ window.I18N.zh = {
 
   zButcher: '屠夫',
   zBrood: '腐化母体',
+  zCharger: '冲撞者',
+  zMortar: '迫击者',
+  zNecro: '纳尸者',
   bossWarn: '首领来袭',
   bossDown: '首领已被击杀',
 

@@ -63,6 +63,9 @@ window.I18N.en = {
 
   zButcher: 'The Butcher',
   zBrood: 'Brood Mother',
+  zCharger: 'Charger',
+  zMortar: 'Mortar',
+  zNecro: 'Necromancer',
   bossWarn: 'BOSS INCOMING',
   bossDown: 'BOSS DOWN',
 

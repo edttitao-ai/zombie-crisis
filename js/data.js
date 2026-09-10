@@ -153,9 +153,15 @@ const ZDEF = {
   butcher:  { r: 34, hp: 900, hpW: 210, spd: 46, spdW: 1.2, spdCap: 84, dmg: 30, col: '#a8452f', sc: 300, boss: 'butcher', nameKey: 'zButcher' },
   // 腐化母体：保持距离喷酸扇面，并周期召唤尸群；逼玩家主动压上去
   brood:    { r: 30, hp: 820, hpW: 180, spd: 40, spdW: 1.0, spdCap: 72, dmg: 18, col: '#8a4fa8', sc: 320, boss: 'brood', nameKey: 'zBrood' },
+  // 冲撞者：蓄力后直线猛冲（有预警线），撞完进入硬直 —— 逼你横向闪避、再抓硬直输出
+  charger:  { r: 30, hp: 780, hpW: 175, spd: 52, spdW: 1.1, spdCap: 88, dmg: 26, col: '#d2691e', sc: 310, boss: 'charger', nameKey: 'zCharger' },
+  // 迫击者：远距离抛射带落点警示的炮弹 —— 区域封锁，逼你一直移动
+  mortar:   { r: 32, hp: 800, hpW: 178, spd: 34, spdW: 0.8, spdCap: 62, dmg: 16, col: '#7d8f3a', sc: 310, boss: 'mortar', nameKey: 'zMortar' },
+  // 纳尸者：把地上的尸体重新拉起来（并回复自身）—— 不清场就会被自己的战果反噬
+  necro:    { r: 31, hp: 860, hpW: 185, spd: 38, spdW: 0.9, spdCap: 68, dmg: 20, col: '#3f8f7d', sc: 330, boss: 'necro', nameKey: 'zNecro' }
 };
 // Boss 轮换顺序：每 5 波一只，循环。改这里就能改出场次序。
-const BOSS_ORDER = ['butcher', 'brood'];
+const BOSS_ORDER = ['butcher', 'brood', 'charger', 'mortar', 'necro'];
 // 出场概率阈值表：[类型, 累计阈值]，数组顺序即优先级。未到 minWave 的类型被跳过，
 // 其概率质量归给 normal（与原实现完全等价）。调整难度只改这张表。
 const SPAWN_TABLE = [
