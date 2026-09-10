@@ -42,19 +42,175 @@ function tintSilhouette(src, color) {
   return c;
 }
 
+/* ===== 地形：预制区块拼接 + 多倍频噪声 =====
+   旧版是「十几个随机椭圆 + 均匀散点 + 等距网格」，三个实测出来的问题：
+   ① 随机椭圆的边界在半透明叠加处会显影，眼睛能追出来 → 读成"泡泡/油渍"，不是材质；
+   ② 每个元素都随机角度、随机位置 → 缺共享方向，这是"噪点感"的根源（不是细节不够）；
+   ③ 明度全挤在暗部（audit：最暗 4 格占 83%、高光 0%），色相里青/蓝/紫为 0。
+   现在按「先定用途 → 再定结构 → 最后才是颗粒」来做：地块切成预制区块（沥青/水泥板/裸土/
+   积水/碎屑），块内用确定性噪声当材质，接缝只沿一个"浇筑方向"，裂缝沿缝走，水给高光。 */
+function makeRng(seed) {
+  let s = seed >>> 0;
+  return () => { s ^= s << 13; s >>>= 0; s ^= s >> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
+}
+// value noise：在低分辨率离屏画布上生成再放大绘制。
+// **不能逐像素画进主画布** —— 1264×765 就是近百万次写入，会把一次性烘焙从 8ms 推到秒级。
+function noiseCanvas(w, h, rng, cell, oct) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g2 = c.getContext('2d');
+  const N = 64, grid = new Float32Array(N * N);
+  for (let i = 0; i < grid.length; i++) grid[i] = rng();
+  const at = (x, y) => grid[(((y % N) + N) % N) * N + (((x % N) + N) % N)];
+  const smooth = (x, y) => {
+    const x0 = Math.floor(x), y0 = Math.floor(y);
+    const fx = x - x0, fy = y - y0;
+    const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+    const a = at(x0, y0), b = at(x0 + 1, y0), c2 = at(x0, y0 + 1), d = at(x0 + 1, y0 + 1);
+    return (a * (1 - sx) + b * sx) * (1 - sy) + (c2 * (1 - sx) + d * sx) * sy;
+  };
+  const img = g2.createImageData(w, h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let v = 0, amp = 0.5, f = 1, norm = 0;
+      for (let o = 0; o < oct; o++) { v += smooth(x / cell * f, y / cell * f) * amp; norm += amp; amp *= 0.5; f *= 2; }
+      const l = Math.round(clamp(v / norm, 0, 1) * 255);
+      const i = (y * w + x) * 4;
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = l; img.data[i + 3] = 255;
+    }
+  }
+  g2.putImageData(img, 0, 0);
+  return c;
+}
+// 预制区块：由"用途"决定基色与结构（而不是由随机椭圆决定明暗）。边缘偏好裸土，像场地的外围。
+// 权重刻意让**水泥板与沥青占多数**：泥土地块太棕太大块时会盖掉整场的结构（实测踩过）。
+function chunkKind(rng, cx, cy, cols, rows) {
+  const edge = cx === 0 || cy === 0 || cx === cols - 1 || cy === rows - 1;
+  const r = rng();
+  if (r < 0.18) return 'puddle';
+  if (r < (edge ? 0.36 : 0.26)) return 'dirt';
+  if (r < 0.40) return 'rubble';
+  if (r < 0.80) return 'slab';
+  return 'asphalt';
+}
+// 一条接缝：暗芯 + 亮边。环境遮蔽的一半就落在这条暗芯上，也是"结构被看见"的原因。
+function drawJoint(g, x1, y1, x2, y2, w) {
+  g.lineCap = 'butt';
+  g.strokeStyle = PAL.jointDark; g.lineWidth = w;
+  g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+  g.strokeStyle = PAL.jointLight; g.lineWidth = Math.max(0.6, w * 0.32);
+  g.beginPath(); g.moveTo(x1 + 0.9, y1 + 0.9); g.lineTo(x2 + 0.9, y2 + 0.9); g.stroke();
+}
+function drawChunk(g, kind, x, y, S, rng) {
+  const rnd = (a, b) => a + rng() * (b - a);
+  const cx2 = x + S / 2, cy2 = y + S / 2;
+  // 每块自己的颗粒：暗粒与亮粒混着撒、按块聚集。
+  // 这一层是"颜色数"和"材质感"的来源 —— 全屏均匀撒点是噪点，按块聚集才是材质。
+  const grain = () => {
+    // 密度与亮粒都刻意压低：实测 300 颗/块 + 亮粒 0.16 会把地面局部亮度抬高，
+    // 实体分离比掉到基线以下（normal 3.34→3.07、brute 3.05→2.80）—— 地面噪音抢了实体的对比度。
+    // 红线是"不能为了地图好看牺牲实体可读性"，所以这里回退到 120 颗、亮粒封顶 0.11。
+    for (let i = 0; i < 95; i++) {
+      const dark = rng() < 0.66;
+      g.fillStyle = dark ? hexA('#000000', +rnd(0.12, 0.32).toFixed(3))
+                         : hexA('#d8e2c8', +rnd(0.04, 0.11).toFixed(3));
+      const s = rnd(0.9, 2.2);
+      g.fillRect(cx2 + rnd(-S / 2, S / 2), cy2 + rnd(-S / 2, S / 2), s, s * rnd(0.8, 1.8));
+    }
+  };
+  grain();   // 先铺颗粒再画结构：接缝与镜面反光要压在最上面才清楚
+  if (kind === 'puddle') {
+    // 积水：不规则多边形（折线边）。有机但不是圆 —— 圆边是"泡泡感"的来源
+    g.fillStyle = PAL.puddleCol;
+    g.beginPath();
+    const n = 7;
+    for (let i = 0; i < n; i++) {
+      const a = i / n * TAU + rnd(-0.16, 0.16);
+      const r = S * rnd(0.34, 0.52);         // 面积要够才读得出"这是水洼"，小水渍在 30px 下看不见
+      const px = cx2 + Math.cos(a) * r, py = cy2 + Math.sin(a) * r * 0.72;
+      if (i) g.lineTo(px, py); else g.moveTo(px, py);
+    }
+    g.closePath(); g.fill();
+    // 镜面反光：地面唯一允许的高光，也是"湿"的全部说辞。
+    // 柔光一条 + 镜面芯一条 —— 只靠低透明度是顶不到高光区的（实测 0.16 的 alpha 在暗地面上不到 70）。
+    g.strokeStyle = PAL.puddleHi; g.lineWidth = rnd(4, 7);
+    g.beginPath();
+    g.moveTo(cx2 - S * 0.24, cy2 - S * 0.10);
+    g.quadraticCurveTo(cx2, cy2 - S * 0.18, cx2 + S * 0.26, cy2 - S * 0.06);
+    g.stroke();
+    g.strokeStyle = PAL.puddleCore; g.lineWidth = rnd(1.6, 2.6);
+    g.beginPath();
+    g.moveTo(cx2 - S * 0.20, cy2 - S * 0.11);
+    g.quadraticCurveTo(cx2, cy2 - S * 0.185, cx2 + S * 0.22, cy2 - S * 0.07);
+    g.stroke();
+    // 水面上的几点碎光（水膜被雨点打过的样子）
+    g.fillStyle = PAL.puddleCore;
+    for (let i = 0; i < 4; i++) {
+      g.globalAlpha = rnd(0.35, 0.8);
+      g.fillRect(cx2 + rnd(-S * 0.3, S * 0.3), cy2 + rnd(-S * 0.22, S * 0.22), rnd(1.2, 2.6), rnd(1, 2));
+    }
+    g.globalAlpha = 1;
+    return;
+  }
+  if (kind === 'slab') {
+    // 水泥板：整块铺 + 一道平行接缝（共享方向 = 不像噪点的关键）
+    g.fillStyle = hexA(PAL.slab, 0.58);
+    g.fillRect(x, y, S, S);
+    const cut = rnd(0.38, 0.62);
+    if (rng() < 0.5) drawJoint(g, x, y + S * cut, x + S, y + S * cut, 2.2);
+    else drawJoint(g, x + S * cut, y, x + S * cut, y + S, 2.2);
+    return;
+  }
+  if (kind === 'dirt') {
+    // 裸土：不规则多边形（比块略小，露出底下的沥青形成过渡带）
+    g.fillStyle = hexA(PAL.dirt, 0.62);
+    g.beginPath();
+    const n = 8;
+    for (let i = 0; i < n; i++) {
+      const a = i / n * TAU;
+      const r = S * rnd(0.44, 0.58);
+      const px = cx2 + Math.cos(a) * r, py = cy2 + Math.sin(a) * r * 0.82;
+      if (i) g.lineTo(px, py); else g.moveTo(px, py);
+    }
+    g.closePath(); g.fill();
+    return;
+  }
+  if (kind === 'rubble') {
+    // 碎屑堆：按块聚集的小碎块 —— 不是全屏均匀撒点（均匀撒点没有"聚落感"）
+    g.fillStyle = hexA(PAL.rubbleCol, 0.70);
+    g.beginPath(); g.ellipse(cx2, cy2, S * 0.30, S * 0.22, rnd(0, 3.14), 0, 7); g.fill();
+    g.fillStyle = 'rgba(0,0,0,0.28)';
+    for (let i = 0; i < 14; i++) {
+      const a = rng() * TAU, r = rng() * S * 0.30;
+      g.fillRect(cx2 + Math.cos(a) * r, cy2 + Math.sin(a) * r, rnd(2, 5), rnd(1.5, 4));
+    }
+    return;
+  }
+  // asphalt：湿沥青，只留褪色车道线给出尺度与方向
+  g.fillStyle = hexA(PAL.asphalt, 0.55);
+  g.fillRect(x, y, S, S);
+  if (rng() < 0.45) {
+    g.fillStyle = PAL.laneMark;
+    const along = rng() < 0.5;
+    for (let k = 0; k < 3; k++) {
+      if (along) g.fillRect(x + S * (0.24 + k * 0.26), y + S * 0.46, S * 0.13, S * 0.05);
+      else g.fillRect(x + S * 0.46, y + S * (0.24 + k * 0.26), S * 0.05, S * 0.13);
+    }
+  }
+}
 function buildGround() {
   const dpr = window.devicePixelRatio || 1;
   const gw = Math.ceil(W * dpr), gh = Math.ceil(H * dpr);
-  // 地形单独存一张「底图」：贴花要按年龄淡出就必须能重建，而地形本身是随机的、
-  // 不能重绘（否则每次重建整片地面都会变样）。有了底图，重建只是 1 次整屏 blit
-  // 加上重贴贴花，所以可以按秒级频率做。
-  // 画布复用而不重建：新分配整屏画布实测把单次重建从 ~2ms 推到 ~10ms。
+  // 地形单独存一张「底图」：贴花要按年龄淡出就必须能重建，而地形本身不能每次重绘成另一样子
+  // （种子固定后，同一尺寸下重建得到的地形完全一致）。画布复用而不重建。
   if (!groundBase) groundBase = document.createElement('canvas');
   if (groundBase.width !== gw || groundBase.height !== gh) { groundBase.width = gw; groundBase.height = gh; }
   const g = groundBase.getContext('2d');
   g.setTransform(dpr, 0, 0, dpr, 0, 0);   // 用 setTransform：复用画布时 scale 会累积
+  const rng = makeRng(TERRAIN_SEED);
+  const rnd = (a, b) => a + rng() * (b - a);
 
-  // 1) 基底：中低明度土石地面（原来近黑，整帧 88% 像素挤在最暗的一格里）
+  // 1) 基底：中低明度土石地面（近黑会让整帧 88% 像素挤在最暗一格）
   g.fillStyle = PAL.groundBase;
   g.fillRect(0, 0, W, H);
 
@@ -66,71 +222,91 @@ function buildGround() {
   g.fillStyle = amb;
   g.fillRect(0, 0, W, H);
 
-  // 3) 暖土斑：掺回暖调，避免整屏发蓝
-  for (let i = 0; i < 24; i++) {
-    g.fillStyle = hexA(PAL.warmPatch, +rand(0.05, 0.15).toFixed(3));
-    g.beginPath();
-    g.ellipse(rand(0, W), rand(0, H), rand(90, 300), rand(55, 190), rand(0, 3.2), 0, 7);
-    g.fill();
+  // 3) 大尺度明暗：多倍频噪声（取代原来 38 个随机椭圆）。噪声没有可辨认的形状。
+  //    alpha 不能高：太强会把整场糊成一层"水洗感"，也会盖掉区块之间的明度差（实测 0.55 就过头了）
+  g.globalCompositeOperation = 'overlay';
+  g.globalAlpha = 0.34;
+  g.drawImage(noiseCanvas(Math.max(24, Math.round(W / 8)), Math.max(16, Math.round(H / 8)), rng, 5, 3),
+              0, 0, W, H);
+  g.globalAlpha = 1;
+  g.globalCompositeOperation = 'source-over';
+
+  // 4) 预制区块随机拼接（区块自带用途与结构）
+  const S = CHUNK_SIZE;
+  const cols = Math.max(1, Math.ceil(W / S)), rows = Math.max(1, Math.ceil(H / S));
+  const kinds = [];
+  for (let cy = 0; cy < rows; cy++) for (let cx = 0; cx < cols; cx++) kinds.push(chunkKind(rng, cx, cy, cols, rows));
+  kinds.forEach((k, i) => drawChunk(g, k, (i % cols) * S, ((i / cols) | 0) * S, S, rng));
+
+  // 5) 接缝：整场只沿一个"浇筑方向"、间距不等。
+  //    等距网格读数像坐标纸/瓷砖缝（人造参考线的语言），必须避免 —— 这里刻意用不等间距。
+  const vertical = rng() < 0.5;
+  let p = rnd(0.4, 0.9) * S;
+  const span = vertical ? W : H;
+  while (p < span) {
+    if (vertical) drawJoint(g, p, 0, p, H, rnd(1.6, 2.8));
+    else drawJoint(g, 0, p, W, p, rnd(1.6, 2.8));
+    p += rnd(0.75, 1.6) * S;
   }
 
-  // 4) 大块明暗：建立真正的高低差（原来只有 0.04–0.10，几乎看不出起伏）
-  for (let i = 0; i < 38; i++) {
-    g.fillStyle = Math.random() < 0.6 ? PAL.groundDark : PAL.groundLight;
-    g.beginPath();
-    g.ellipse(rand(0, W), rand(0, H), rand(50, 260), rand(36, 170), rand(0, 3.2), 0, 7);
-    g.fill();
-  }
-
-  // 5) 裂缝：亮边 + 暗芯，读起来像真的裂开
-  for (let i = 0; i < 30; i++) {
-    let x = rand(0, W), y = rand(0, H), a = rand(0, 6.28);
-    const pts = [[x, y]];
+  // 6) 裂缝：整体沿接缝走向（共享方向），不穿块
+  for (let i = 0; i < 26; i++) {
+    let x = rnd(0, W), y = rnd(0, H);
+    let a = (vertical ? Math.PI / 2 : 0) + rnd(-0.35, 0.35);
+    g.beginPath(); g.moveTo(x, y);
     for (let k = 0; k < 4; k++) {
-      a += rand(-0.9, 0.9);
-      x += Math.cos(a) * rand(16, 46); y += Math.sin(a) * rand(16, 46);
-      pts.push([x, y]);
+      a += rnd(-0.5, 0.5);
+      x += Math.cos(a) * rnd(18, 52); y += Math.sin(a) * rnd(18, 52);
+      g.lineTo(x, y);
     }
-    const trace = () => {
-      g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
-      for (let k = 1; k < pts.length; k++) g.lineTo(pts[k][0], pts[k][1]);
-      g.stroke();
-    };
-    g.lineWidth = 2.6; g.strokeStyle = PAL.crackLight; trace();
-    g.lineWidth = 1.0; g.strokeStyle = PAL.crackDark;  trace();
+    g.strokeStyle = PAL.jointDark; g.lineWidth = 1.1; g.stroke();
+    g.strokeStyle = PAL.jointLight; g.lineWidth = 0.5; g.stroke();
   }
 
-  // 6) 碎屑暗粒 + 湿面反光点
-  for (let i = 0; i < 420; i++) {
-    g.fillStyle = Math.random() < 0.55 ? hexA('#000000', +rand(0.14, 0.30).toFixed(3)) : PAL.groundLight;
-    const s = rand(1, 2.6);
-    g.fillRect(rand(0, W), rand(0, H), s, s);
-  }
-  for (let i = 0; i < 46; i++) {
-    g.fillStyle = hexA('#cfe4ff', +rand(0.06, 0.16).toFixed(3));
-    const s = rand(1, 2.2);
-    g.fillRect(rand(0, W), rand(0, H), s, s * rand(1, 3));
-  }
-
-  // 7) 湿地反光条纹
-  for (let i = 0; i < 9; i++) {
-    const x = rand(0, W), y = rand(0, H), len = rand(120, 380), ang = rand(-0.5, 0.5);
-    const ex = x + Math.cos(ang) * len, ey = y + Math.sin(ang) * len;
-    const lg = g.createLinearGradient(x, y, ex, ey);
-    lg.addColorStop(0, hexA('#bcd6f2', 0));
-    lg.addColorStop(0.5, hexA('#bcd6f2', +rand(0.04, 0.09).toFixed(3)));
-    lg.addColorStop(1, hexA('#bcd6f2', 0));
-    g.strokeStyle = lg; g.lineWidth = rand(2, 6);
-    g.beginPath(); g.moveTo(x, y); g.lineTo(ex, ey); g.stroke();
+  // 7) 细颗粒：低分辨率噪声放大 + 少量水膜亮点（高光只给"水"，不给石头）
+  g.globalCompositeOperation = 'overlay';
+  g.globalAlpha = 0.20;
+  g.drawImage(noiseCanvas(Math.max(32, Math.round(W / 6)), Math.max(20, Math.round(H / 6)), rng, 2, 2),
+              0, 0, W, H);
+  g.globalAlpha = 1;
+  g.globalCompositeOperation = 'source-over';
+  for (let i = 0; i < 70; i++) {
+    g.fillStyle = hexA('#dceaff', +rnd(0.05, 0.16).toFixed(3));
+    const s = rnd(1, 2.4);
+    g.fillRect(rnd(0, W), rnd(0, H), s, s * rnd(1, 2.6));
   }
 
-  // 8) 细网格：压得很淡，只作尺度参考，不再像坐标纸
-  g.strokeStyle = PAL.grid;
-  g.lineWidth = 1;
-  g.beginPath();
-  for (let x = 0; x <= W; x += 64) { g.moveTo(x, 0); g.lineTo(x, H); }
-  for (let y = 0; y <= H; y += 64) { g.moveTo(0, y); g.lineTo(W, y); }
-  g.stroke();
+  // 8) 静态光池：光让"结构"被看见，是最便宜的高级感来源（两三处，别铺满）。
+  //    每处给一个小的亮芯 —— 灯在水面上的反射点，也是地面唯一能进高光区的暖色。
+  g.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 3; i++) {
+    const lx = rnd(W * 0.12, W * 0.88), ly = rnd(H * 0.12, H * 0.88), lr = rnd(210, 330);
+    const lg = g.createRadialGradient(lx, ly, 0, lx, ly, lr);
+    lg.addColorStop(0, hexA(PAL.keyLight, 0.11));
+    lg.addColorStop(0.55, hexA(PAL.keyLight, 0.05));
+    lg.addColorStop(1, hexA(PAL.keyLight, 0));
+    g.fillStyle = lg;
+    g.beginPath(); g.arc(lx, ly, lr, 0, 7); g.fill();
+    const core = g.createRadialGradient(lx, ly, 0, lx, ly, 30);
+    core.addColorStop(0, hexA('#fff2d0', 0.40));
+    core.addColorStop(1, hexA('#fff2d0', 0));
+    g.fillStyle = core;
+    g.beginPath(); g.arc(lx, ly, 30, 0, 7); g.fill();
+  }
+  g.globalCompositeOperation = 'source-over';
+
+  // 8.5) 整体压暗：地块填充本身带明度，不压这一层地面中调就会被抬高，
+  //      实体分离比随之下降（实测 3.34→3.07）。结构靠边与缝读，不靠亮。
+  g.fillStyle = 'rgba(8,11,8,0.10)';
+  g.fillRect(0, 0, W, H);
+
+  // 9) 场地边缘压暗：把可玩区域"框"出来，僵尸从暗处逼近的感觉也来自这里
+  const edge = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.30,
+                                      W / 2, H / 2, Math.max(W, H) * 0.62);
+  edge.addColorStop(0, 'rgba(0,0,0,0)');
+  edge.addColorStop(1, 'rgba(4,7,12,0.34)');
+  g.fillStyle = edge;
+  g.fillRect(0, 0, W, H);
 
   // 合成层：render 每帧只 blit 这一张
   if (!ground) ground = document.createElement('canvas');
@@ -213,9 +389,11 @@ function finishSprite(src, rimCol, dpr) {
   fg.globalCompositeOperation = 'destination-over';
   fg.drawImage(tintSilhouette(src, rimCol), -2 * dpr, -2 * dpr);
   const outline = tintSilhouette(src, PAL.outline);
-  for (let o = 0; o < 8; o++) {
-    const oa = o * Math.PI / 4;
-    fg.drawImage(outline, Math.cos(oa) * 1.6 * dpr, Math.sin(oa) * 1.6 * dpr);
+  // 描边从 1.6px 加粗到 2.6px：这是实体从地面里跳出来最直接的杠杆。
+  // 比压暗地图正确得多 —— 压暗地面是在牺牲地图换对比度，加粗描边不牺牲任何东西。
+  for (let o = 0; o < 12; o++) {
+    const oa = o * Math.PI / 6;
+    fg.drawImage(outline, Math.cos(oa) * 2.6 * dpr, Math.sin(oa) * 2.6 * dpr);
   }
   return fin;
 }
